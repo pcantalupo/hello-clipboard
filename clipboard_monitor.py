@@ -5,6 +5,7 @@ import tkinter as tk
 import objc
 from AppKit import (
     NSApplication,
+    NSApplicationActivationPolicyAccessory,
     NSMenu,
     NSMenuItem,
     NSPasteboard,
@@ -42,8 +43,9 @@ class MenuBarIcon:
     """macOS menu bar icon using PyObjC — works alongside Tkinter."""
 
     def __init__(self, on_toggle, on_quit):
-        # Ensure NSApplication is initialized
-        NSApplication.sharedApplication()
+        # Ensure NSApplication is initialized; hide from Dock (menu bar only)
+        app = NSApplication.sharedApplication()
+        app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
 
         # Create delegate (must be NSObject subclass for target/action)
         self.delegate = MenuBarDelegate.alloc().initWithCallbacks_({
