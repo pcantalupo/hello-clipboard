@@ -13,7 +13,10 @@ A macOS menu bar app that monitors your clipboard and lets you view and edit its
 ## Requirements
 
 - macOS
-- Python 3 (with `tkinter` — included with most Python installs)
+- [Homebrew](https://brew.sh)
+- Python 3.10+ (the built-in macOS system Python 3.9 is **not** supported)
+  - `brew install python@3.12`
+  - `python-tk` is also required; `install.sh` will install it automatically if missing
 
 ## Installation
 
@@ -28,6 +31,7 @@ cd clipboard
 | Step | Detail |
 |------|--------|
 | Creates `.venv/` | A Python virtual environment inside the project directory |
+| Installs `python-tk` | Via Homebrew, if tkinter is not already available |
 | Installs dependencies | Runs `pip install -r requirements.txt` into the venv (`pyobjc-framework-Cocoa`) |
 | Generates LaunchAgent plist | Writes `com.user.clipboard-monitor.plist` to `~/Library/LaunchAgents/` with paths resolved to your machine |
 | Loads the agent | Calls `launchctl load` so the monitor starts on login |
@@ -51,6 +55,10 @@ The plist points to the venv's Python and the monitor script using absolute path
     <string>/path/to/clipboard/clipboard_monitor.py</string>
 </array>
 ```
+
+### "Background Items Added" notification
+
+After installation, macOS will show a notification saying **"python3" is an item that can run in the background**. This is expected — it's the clipboard monitor's LaunchAgent. You can review it in **System Settings > General > Login Items & Extensions**.
 
 ## Usage
 
