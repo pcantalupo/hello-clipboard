@@ -1,1 +1,4 @@
 __pycache__/
+.claude/
+.venv/
+.DS_Store
