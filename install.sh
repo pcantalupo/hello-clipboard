@@ -25,13 +25,6 @@ fi
 
 echo "Using Python: $PYTHON ($("$PYTHON" --version))"
 
-# Ensure tkinter is available (Homebrew ships it separately as python-tk)
-if ! "$PYTHON" -c "import tkinter" 2>/dev/null; then
-    PY_MAJMIN="$("$PYTHON" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
-    echo "tkinter not found. Installing python-tk@$PY_MAJMIN via Homebrew..."
-    brew install "python-tk@$PY_MAJMIN"
-fi
-
 # Create venv and install deps (--clear ensures a stale venv from a different Python is replaced)
 "$PYTHON" -m venv --clear "$VENV_DIR"
 "$VENV_DIR/bin/pip" install -r "$SCRIPT_DIR/requirements.txt"
