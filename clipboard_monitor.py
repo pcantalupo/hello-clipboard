@@ -271,8 +271,6 @@ class ClipboardWindow(NSObject):
             self.current_image = data
             self._display_image(data)
 
-        if self.visible:
-            self.window.orderFrontRegardless()
 
     def _display_image(self, pil_image):
         buf = io.BytesIO()
