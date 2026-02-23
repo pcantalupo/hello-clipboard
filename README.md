@@ -4,19 +4,17 @@ A macOS menu bar app that monitors your clipboard and lets you view and edit its
 
 ## What it does
 
-- Adds a clipboard icon to your macOS menu bar
+- Adds a clipboard icon (📋) to your macOS menu bar
 - Polls the system clipboard every 500ms for changes
 - Opens an editable text window where you can view and modify clipboard contents — edits are written back to the clipboard in real time
-- The window auto-raises when new content is copied
+- Displays copied images with scaling to fit the window
 - Closing the window hides it (use the menu bar icon to reopen, or "Quit" to exit)
 
 ## Requirements
 
 - macOS
-- [Homebrew](https://brew.sh)
 - Python 3.10+ (the built-in macOS system Python 3.9 is **not** supported)
-  - `brew install python@3.12`
-  - `python-tk` is also required; `install.sh` will install it automatically if missing
+  - Install via [Homebrew](https://brew.sh): `brew install python@3.12`
 
 ## Installation
 
@@ -31,8 +29,7 @@ cd clipboard
 | Step | Detail |
 |------|--------|
 | Creates `.venv/` | A Python virtual environment inside the project directory |
-| Installs `python-tk` | Via Homebrew, if tkinter is not already available |
-| Installs dependencies | Runs `pip install -r requirements.txt` into the venv (`pyobjc-framework-Cocoa`) |
+| Installs dependencies | Runs `pip install -r requirements.txt` into the venv (`pyobjc-framework-Cocoa`, `Pillow`) |
 | Generates LaunchAgent plist | Writes `com.user.clipboard-monitor.plist` to `~/Library/LaunchAgents/` with paths resolved to your machine |
 | Loads the agent | Calls `launchctl load` so the monitor starts on login |
 
@@ -64,8 +61,10 @@ After installation, macOS will show a notification saying **"python3" is an item
 
 After installation, the monitor starts automatically on login. To interact with it:
 
-- **Open the window** — click the clipboard icon in the menu bar, then "Show Window"
-- **Edit clipboard** — type in the window; changes are written back to the clipboard immediately
+- **Open the window** — click the 📋 icon in the menu bar, then "Show Window"
+- **Edit clipboard text** — type in the window; changes are written back to the clipboard immediately
+- **View clipboard images** — copied images are displayed scaled to fit the window
+- **Clear an image** — click the "Clear" button or press Delete/Backspace while viewing an image
 - **Hide the window** — close it or click "Hide Window" in the menu bar
 - **Quit** — click "Quit" in the menu bar
 
@@ -99,8 +98,8 @@ This unloads the LaunchAgent and removes the plist from `~/Library/LaunchAgents/
 
 ```
 clipboard/
-├── clipboard_monitor.py   # Main application
-├── requirements.txt       # Python dependencies (pyobjc-framework-Cocoa)
+├── clipboard_monitor.py   # Main application (pure AppKit, no tkinter)
+├── requirements.txt       # Python dependencies (pyobjc-framework-Cocoa, Pillow)
 ├── install.sh             # Sets up venv, deps, and LaunchAgent
 ├── uninstall.sh           # Removes LaunchAgent
 └── .venv/                 # Created by install.sh (not committed)
