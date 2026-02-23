@@ -190,10 +190,6 @@ class ClipboardWindow:
             self.current_image = data
             self._display_image(data)
 
-        if self.visible:
-            self.root.lift()
-            self.root.attributes('-topmost', True)
-            self.root.after_idle(self.root.attributes, '-topmost', False)
 
     def _display_image(self, pil_image):
         """Scale and display a PIL image in the image label."""
