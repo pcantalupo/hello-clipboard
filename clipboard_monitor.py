@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-import io
-
 import objc
 from AppKit import (
     NSApplication,
@@ -9,7 +7,6 @@ from AppKit import (
     NSBezelStyleRounded,
     NSButton,
     NSClosableWindowMask,
-    NSData,
     NSFont,
     NSImage,
     NSImageScaleProportionallyUpOrDown,
@@ -31,7 +28,6 @@ from AppKit import (
     NSWindow,
 )
 from Foundation import NSMakeRect, NSObject, NSTimer
-from PIL import Image
 
 
 NSTextDidChangeNotification = "NSTextDidChangeNotification"
@@ -215,11 +211,9 @@ class ClipboardWindow(NSObject):
             if img_type in types:
                 data = self.pasteboard.dataForType_(img_type)
                 if data:
-                    try:
-                        pil_image = Image.open(io.BytesIO(data.bytes()))
-                        return ('image', pil_image)
-                    except Exception:
-                        pass
+                    ns_image = NSImage.alloc().initWithData_(data)
+                    if ns_image:
+                        return ('image', ns_image)
 
         if NSPasteboardTypeString in types:
             text = self.pasteboard.stringForType_(NSPasteboardTypeString)
@@ -272,11 +266,7 @@ class ClipboardWindow(NSObject):
             self._display_image(data)
 
 
-    def _display_image(self, pil_image):
-        buf = io.BytesIO()
-        pil_image.save(buf, format='PNG')
-        ns_data = NSData.dataWithBytes_length_(buf.getvalue(), len(buf.getvalue()))
-        ns_image = NSImage.alloc().initWithData_(ns_data)
+    def _display_image(self, ns_image):
         self.image_view.setImage_(ns_image)
 
     # -- Clipboard polling --

@@ -29,7 +29,7 @@ cd clipboard
 | Step | Detail |
 |------|--------|
 | Creates `.venv/` | A Python virtual environment inside the project directory |
-| Installs dependencies | Runs `pip install -r requirements.txt` into the venv (`pyobjc-framework-Cocoa`, `Pillow`) |
+| Installs dependencies | Runs `pip install -r requirements.txt` into the venv (`pyobjc-framework-Cocoa`) |
 | Generates LaunchAgent plist | Writes `com.user.clipboard-monitor.plist` to `~/Library/LaunchAgents/` with paths resolved to your machine |
 | Loads the agent | Calls `launchctl load` so the monitor starts on login |
 
@@ -99,7 +99,7 @@ This unloads the LaunchAgent and removes the plist from `~/Library/LaunchAgents/
 ```
 clipboard/
 ├── clipboard_monitor.py   # Main application (pure AppKit, no tkinter)
-├── requirements.txt       # Python dependencies (pyobjc-framework-Cocoa, Pillow)
+├── requirements.txt       # Python dependencies (pyobjc-framework-Cocoa)
 ├── install.sh             # Sets up venv, deps, and LaunchAgent
 ├── uninstall.sh           # Removes LaunchAgent
 └── .venv/                 # Created by install.sh (not committed)
