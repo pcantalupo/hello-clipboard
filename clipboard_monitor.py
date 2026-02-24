@@ -329,40 +329,72 @@ class ClipboardWindow(NSObject):
 
     def run(self):
         app = NSApplication.sharedApplication()
+        app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
 
-        self.setup_window()
-        self.setup_text_view()
-        self.setup_image_view()
+        self._app_delegate = AppDelegate.alloc().initWithClipboardWindow_(self)
+        app.setDelegate_(self._app_delegate)
+
+        app.run()
+
+
+class AppDelegate(NSObject):
+    """NSApplicationDelegate providing proper macOS app lifecycle management."""
+
+    def initWithClipboardWindow_(self, clipboard_window):
+        self = objc.super(AppDelegate, self).init()
+        if self is None:
+            return None
+        self.clipboard_window = clipboard_window
+        return self
+
+    def applicationDidFinishLaunching_(self, notification):
+        """Set up the window, timer, and menu bar after the app has launched."""
+        cw = self.clipboard_window
+
+        cw.setup_window()
+        cw.setup_text_view()
+        cw.setup_image_view()
 
         # Start in text mode
-        self.window.setContentView_(self.scroll_view)
+        cw.window.setContentView_(cw.scroll_view)
 
         # Load initial clipboard content
-        content_type, data = self.get_clipboard_content()
+        content_type, data = cw.get_clipboard_content()
         if content_type == 'text' and data:
-            self.updating_from_clipboard = True
-            self._remove_text_observer()
-            self.text_view.setString_(data)
-            self._add_text_observer()
-            self.updating_from_clipboard = False
+            cw.updating_from_clipboard = True
+            cw._remove_text_observer()
+            cw.text_view.setString_(data)
+            cw._add_text_observer()
+            cw.updating_from_clipboard = False
         elif content_type == 'image' and data:
-            self.update_window('image', data)
+            cw.update_window('image', data)
 
         # Menu bar icon
-        self.menu_bar = MenuBarIcon(
-            on_toggle=self.toggle,
-            on_quit=self.quit_app,
+        cw.menu_bar = MenuBarIcon(
+            on_toggle=cw.toggle,
+            on_quit=cw.quit_app,
         )
 
         # Clipboard polling timer
-        self.timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
-            0.5, self, "checkClipboard:", None, True
+        cw.timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+            0.5, cw, "checkClipboard:", None, True
         )
 
         # Start hidden
-        self.hide()
+        cw.hide()
 
-        app.run()
+    def applicationShouldHandleReopen_hasVisibleWindows_(self, app, has_visible_windows):
+        """Show the window when the app is reopened (e.g., clicked in Finder or Activity Monitor)."""
+        if not has_visible_windows:
+            self.clipboard_window.show()
+        return True
+
+    def applicationWillTerminate_(self, notification):
+        """Invalidate the clipboard polling timer on app termination."""
+        cw = self.clipboard_window
+        if cw.timer:
+            cw.timer.invalidate()
+            cw.timer = None
 
 
 if __name__ == "__main__":
