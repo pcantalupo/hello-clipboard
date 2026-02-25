@@ -65,7 +65,7 @@ After installation, the monitor starts automatically on login. To interact with 
 - **Edit clipboard text** — type in the window; changes are written back to the clipboard immediately
 - **View clipboard images** — copied images are displayed scaled to fit the window
 - **Clear an image** — click the "Clear" button or press Delete/Backspace while viewing an image
-- **Hide the window** — close it or click "Hide Window" in the menu bar
+- **Hide the window** — press Cmd+W, click the window's close button, or click "Hide Window" in the menu bar
 - **Quit** — click "Quit" in the menu bar
 
 ### Run manually (without LaunchAgent)
