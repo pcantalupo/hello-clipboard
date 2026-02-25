@@ -1,10 +1,10 @@
-# Clipboard Monitor
+# Hello Clipboard
 
-A macOS menu bar app that monitors your clipboard and lets you view and edit its contents in a floating window.
+A macOS menu bar app that lets you see and edit your clipboard in a floating window. Say hello to your clipboard — it's been there all along, and now you can finally meet it.
 
 ## What it does
 
-- Adds a clipboard icon (📋) to your macOS menu bar
+- Adds a 📋 icon to your macOS menu bar
 - Polls the system clipboard every 500ms for changes
 - Opens an editable text window where you can view and modify clipboard contents — edits are written back to the clipboard in real time
 - Displays copied images with scaling to fit the window
@@ -22,7 +22,7 @@ A macOS menu bar app that monitors your clipboard and lets you view and edit its
 
 ```bash
 git clone <repo-url>
-cd clipboard
+cd hello-clipboard
 ./install.sh
 ```
 
@@ -32,35 +32,35 @@ cd clipboard
 |------|--------|
 | Creates `.venv/` | A Python virtual environment inside the project directory (via `uv`) |
 | Installs package | Runs `uv pip install .` using `pyproject.toml` (`pyobjc-framework-Cocoa`) |
-| Generates LaunchAgent plist | Writes `com.user.clipboard-monitor.plist` to `~/Library/LaunchAgents/` with paths resolved to your machine |
+| Generates LaunchAgent plist | Writes `com.user.hello-clipboard.plist` to `~/Library/LaunchAgents/` with paths resolved to your machine |
 | Loads the agent | Calls `launchctl load` so the monitor starts on login |
 
 ### Files installed outside the repo
 
 | File | Location | Purpose |
 |------|----------|---------|
-| `com.user.clipboard-monitor.plist` | `~/Library/LaunchAgents/` | macOS LaunchAgent that auto-starts the monitor on login |
-| `clipboard-monitor.log` | `/tmp/` | stdout log |
-| `clipboard-monitor.err` | `/tmp/` | stderr log |
+| `com.user.hello-clipboard.plist` | `~/Library/LaunchAgents/` | macOS LaunchAgent that auto-starts Hello Clipboard on login |
+| `hello-clipboard.log` | `/tmp/` | stdout log |
+| `hello-clipboard.err` | `/tmp/` | stderr log |
 
 ### Generated plist contents
 
-The plist points to the `clipboard-monitor` entry point installed in the venv:
+The plist points to the `hello-clipboard` entry point installed in the venv:
 
 ```xml
 <key>ProgramArguments</key>
 <array>
-    <string>/path/to/clipboard/.venv/bin/clipboard-monitor</string>
+    <string>/path/to/hello-clipboard/.venv/bin/hello-clipboard</string>
 </array>
 ```
 
 ### "Background Items Added" notification
 
-After installation, macOS will show a notification saying **"clipboard-monitor" is an item that can run in the background**. This is expected — it's the clipboard monitor's LaunchAgent. You can review it in **System Settings > General > Login Items & Extensions**.
+After installation, macOS will show a notification saying **"hello-clipboard" is an item that can run in the background**. This is expected — it's the Hello Clipboard LaunchAgent. You can review it in **System Settings > General > Login Items & Extensions**.
 
 ## Usage
 
-After installation, the monitor starts automatically on login. To interact with it:
+After installation, Hello Clipboard starts automatically on login. To interact with it:
 
 - **Open the window** — click the 📋 icon in the menu bar, then "Show Window"
 - **Edit clipboard text** — type in the window; changes are written back to the clipboard immediately
@@ -72,14 +72,14 @@ After installation, the monitor starts automatically on login. To interact with 
 ### Run manually (without LaunchAgent)
 
 ```bash
-.venv/bin/clipboard-monitor
+.venv/bin/hello-clipboard
 ```
 
 ### Check logs
 
 ```bash
-cat /tmp/clipboard-monitor.log
-cat /tmp/clipboard-monitor.err
+cat /tmp/hello-clipboard.log
+cat /tmp/hello-clipboard.err
 ```
 
 ## Uninstallation
@@ -93,8 +93,8 @@ This unloads the LaunchAgent and removes the plist from `~/Library/LaunchAgents/
 ## Project structure
 
 ```
-clipboard/
-├── clipboard_monitor.py   # Main application (pure AppKit, no tkinter)
+hello-clipboard/
+├── hello_clipboard.py     # Main application (pure AppKit, no tkinter)
 ├── pyproject.toml         # Python packaging and dependencies
 ├── install.sh             # Sets up venv, deps, and LaunchAgent
 ├── uninstall.sh           # Removes LaunchAgent and kills running process

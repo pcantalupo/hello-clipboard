@@ -126,7 +126,7 @@ class ClipboardWindow(NSObject):
         self.window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
             NSMakeRect(200, 200, 600, 400), style, NSBackingStoreBuffered, False
         )
-        self.window.setTitle_("Clipboard Contents")
+        self.window.setTitle_("Hello Clipboard")
         self.window.setDelegate_(self)
         self.window.setMinSize_((300, 200))
 

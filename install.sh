@@ -3,7 +3,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 VENV_DIR="$SCRIPT_DIR/.venv"
-PLIST_NAME="com.user.clipboard-monitor"
+PLIST_NAME="com.user.hello-clipboard"
 PLIST_DEST="$HOME/Library/LaunchAgents/$PLIST_NAME.plist"
 
 # Ensure uv is available
@@ -40,7 +40,7 @@ uv venv --python "$PYTHON" --clear "$VENV_DIR"
 uv pip install --python "$VENV_DIR/bin/python3" "$SCRIPT_DIR"
 
 # Clean up build artifacts
-rm -rf "$SCRIPT_DIR/build" "$SCRIPT_DIR/clipboard_monitor.egg-info"
+rm -rf "$SCRIPT_DIR/build" "$SCRIPT_DIR/hello_clipboard.egg-info"
 
 # Generate plist with correct paths
 cat > "$PLIST_DEST" <<EOF
@@ -53,16 +53,16 @@ cat > "$PLIST_DEST" <<EOF
     <string>$PLIST_NAME</string>
     <key>ProgramArguments</key>
     <array>
-        <string>$VENV_DIR/bin/clipboard-monitor</string>
+        <string>$VENV_DIR/bin/hello-clipboard</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
     <false/>
     <key>StandardOutPath</key>
-    <string>/tmp/clipboard-monitor.log</string>
+    <string>/tmp/hello-clipboard.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/clipboard-monitor.err</string>
+    <string>/tmp/hello-clipboard.err</string>
 </dict>
 </plist>
 EOF
@@ -71,5 +71,5 @@ EOF
 launchctl unload "$PLIST_DEST" 2>/dev/null || true
 launchctl load "$PLIST_DEST"
 
-echo "Installed. Clipboard monitor will start on login."
-echo "To run now: $VENV_DIR/bin/clipboard-monitor"
+echo "Installed. Hello Clipboard will start on login."
+echo "To run now: $VENV_DIR/bin/hello-clipboard"
