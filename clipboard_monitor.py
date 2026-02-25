@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import objc
+import signal
 from AppKit import (
     NSApplication,
     NSApplicationActivationPolicyAccessory,
@@ -383,6 +384,18 @@ class AppDelegate(NSObject):
         self.clipboard_window = clipboard_window
         return self
 
+    def _install_sigint_handler(self):
+        """Register SIGINT handler so Ctrl+C from the terminal terminates the app."""
+        signal.signal(
+            signal.SIGINT,
+            lambda s, f: NSApplication.sharedApplication().terminate_(None),
+        )
+
+    @objc.typedSelector(b"v@:@")
+    def reinstallSigintHandler_(self, timer):
+        """Re-register the SIGINT handler periodically (Cocoa run loop may override it)."""
+        self._install_sigint_handler()
+
     def applicationDidFinishLaunching_(self, notification):
         """Set up the window, timer, and menu bar after the app has launched."""
         cw = self.clipboard_window
@@ -415,6 +428,13 @@ class AppDelegate(NSObject):
         # Clipboard polling timer
         cw.timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
             0.5, cw, "checkClipboard:", None, True
+        )
+
+        # SIGINT (Ctrl+C) support: install handler now and re-register every second
+        # because Cocoa's run loop replaces Python's default SIGINT handler.
+        self._install_sigint_handler()
+        NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+            1.0, self, "reinstallSigintHandler:", None, True
         )
 
         # Start hidden
