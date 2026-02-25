@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clipboard-monitor"
+version = "0.1.0"
+description = "A macOS clipboard monitor with a menu bar icon and AppKit window"
+requires-python = ">=3.10"
+dependencies = [
+    "pyobjc-framework-Cocoa",
+]
+
+[project.scripts]
+clipboard-monitor = "clipboard_monitor:main"
