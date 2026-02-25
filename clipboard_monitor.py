@@ -325,6 +325,42 @@ class ClipboardWindow(NSObject):
             self.timer = None
         NSApplication.sharedApplication().terminate_(None)
 
+    # -- Main menu (Cmd+W support) --
+
+    def setup_main_menu(self):
+        """Set up a minimal main menu so Cmd+W hides the window.
+
+        NSApplicationActivationPolicyAccessory apps have no visible menu bar,
+        but setting a mainMenu still registers key equivalents.  A Window menu
+        with a Close Window item (performClose:, key "w") routes Cmd+W through
+        the responder chain to the key window, which calls windowShouldClose_
+        (already implemented) and hides the window.
+        """
+        app = NSApplication.sharedApplication()
+
+        main_menu = NSMenu.alloc().init()
+
+        # macOS requires an application menu as the first item.
+        app_menu_item = NSMenuItem.alloc().init()
+        main_menu.addItem_(app_menu_item)
+        app_menu = NSMenu.alloc().init()
+        app_menu_item.setSubmenu_(app_menu)
+
+        # Window menu containing Close Window (Cmd+W).
+        window_menu_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "Window", "", ""
+        )
+        main_menu.addItem_(window_menu_item)
+        window_menu = NSMenu.alloc().initWithTitle_("Window")
+        window_menu_item.setSubmenu_(window_menu)
+
+        close_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "Close Window", "performClose:", "w"
+        )
+        window_menu.addItem_(close_item)
+
+        app.setMainMenu_(main_menu)
+
     # -- Main entry point --
 
     def run(self):
@@ -352,6 +388,7 @@ class AppDelegate(NSObject):
         cw = self.clipboard_window
 
         cw.setup_window()
+        cw.setup_main_menu()
         cw.setup_text_view()
         cw.setup_image_view()
 
