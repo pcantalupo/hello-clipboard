@@ -15,6 +15,8 @@ A macOS menu bar app that monitors your clipboard and lets you view and edit its
 - macOS
 - Python 3.10+ (the built-in macOS system Python 3.9 is **not** supported)
   - Install via [Homebrew](https://brew.sh): `brew install python@3.12`
+- [uv](https://docs.astral.sh/uv/) — fast Python package installer
+  - Install via Homebrew: `brew install uv`
 
 ## Installation
 
@@ -28,8 +30,8 @@ cd clipboard
 
 | Step | Detail |
 |------|--------|
-| Creates `.venv/` | A Python virtual environment inside the project directory |
-| Installs dependencies | Runs `pip install -r requirements.txt` into the venv (`pyobjc-framework-Cocoa`) |
+| Creates `.venv/` | A Python virtual environment inside the project directory (via `uv`) |
+| Installs package | Runs `uv pip install .` using `pyproject.toml` (`pyobjc-framework-Cocoa`) |
 | Generates LaunchAgent plist | Writes `com.user.clipboard-monitor.plist` to `~/Library/LaunchAgents/` with paths resolved to your machine |
 | Loads the agent | Calls `launchctl load` so the monitor starts on login |
 
@@ -43,19 +45,18 @@ cd clipboard
 
 ### Generated plist contents
 
-The plist points to the venv's Python and the monitor script using absolute paths derived at install time:
+The plist points to the `clipboard-monitor` entry point installed in the venv:
 
 ```xml
 <key>ProgramArguments</key>
 <array>
-    <string>/path/to/clipboard/.venv/bin/python3</string>
-    <string>/path/to/clipboard/clipboard_monitor.py</string>
+    <string>/path/to/clipboard/.venv/bin/clipboard-monitor</string>
 </array>
 ```
 
 ### "Background Items Added" notification
 
-After installation, macOS will show a notification saying **"python3" is an item that can run in the background**. This is expected — it's the clipboard monitor's LaunchAgent. You can review it in **System Settings > General > Login Items & Extensions**.
+After installation, macOS will show a notification saying **"clipboard-monitor" is an item that can run in the background**. This is expected — it's the clipboard monitor's LaunchAgent. You can review it in **System Settings > General > Login Items & Extensions**.
 
 ## Usage
 
@@ -71,12 +72,7 @@ After installation, the monitor starts automatically on login. To interact with 
 ### Run manually (without LaunchAgent)
 
 ```bash
-# Using the venv directly
-.venv/bin/python3 clipboard_monitor.py
-
-# Or activate the venv first
-source .venv/bin/activate
-python3 clipboard_monitor.py
+.venv/bin/clipboard-monitor
 ```
 
 ### Check logs
@@ -99,8 +95,8 @@ This unloads the LaunchAgent and removes the plist from `~/Library/LaunchAgents/
 ```
 clipboard/
 ├── clipboard_monitor.py   # Main application (pure AppKit, no tkinter)
-├── requirements.txt       # Python dependencies (pyobjc-framework-Cocoa)
+├── pyproject.toml         # Python packaging and dependencies
 ├── install.sh             # Sets up venv, deps, and LaunchAgent
-├── uninstall.sh           # Removes LaunchAgent
+├── uninstall.sh           # Removes LaunchAgent and kills running process
 └── .venv/                 # Created by install.sh (not committed)
 ```

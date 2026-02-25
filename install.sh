@@ -39,6 +39,9 @@ uv venv --python "$PYTHON" --clear "$VENV_DIR"
 # Install the package from pyproject.toml using uv (faster than pip)
 uv pip install --python "$VENV_DIR/bin/python3" "$SCRIPT_DIR"
 
+# Clean up build artifacts
+rm -rf "$SCRIPT_DIR/build" "$SCRIPT_DIR/clipboard_monitor.egg-info"
+
 # Generate plist with correct paths
 cat > "$PLIST_DEST" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
