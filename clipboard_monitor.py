@@ -454,6 +454,10 @@ class AppDelegate(NSObject):
             cw.timer = None
 
 
-if __name__ == "__main__":
+def main():
     window = ClipboardWindow.alloc().init()
     window.run()
+
+
+if __name__ == "__main__":
+    main()
