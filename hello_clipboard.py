@@ -46,11 +46,16 @@ class MenuBarDelegate(NSObject):
             return None
         self.on_toggle = callbacks["on_toggle"]
         self.on_quit = callbacks["on_quit"]
+        self.on_clear = callbacks["on_clear"]
         return self
 
     @objc.typedSelector(b"v@:@")
     def toggleWindow_(self, sender):
         self.on_toggle()
+
+    @objc.typedSelector(b"v@:@")
+    def clearClipboard_(self, sender):
+        self.on_clear(None)
 
     @objc.typedSelector(b"v@:@")
     def quitApp_(self, sender):
@@ -62,13 +67,14 @@ class MenuBarIcon:
 
     _ICON_SIZE = 18.0
 
-    def __init__(self, on_toggle, on_quit):
+    def __init__(self, on_toggle, on_quit, on_clear):
         app = NSApplication.sharedApplication()
         app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
 
         self.delegate = MenuBarDelegate.alloc().initWithCallbacks_({
             "on_toggle": on_toggle,
             "on_quit": on_quit,
+            "on_clear": on_clear,
         })
 
         self.status_item = NSStatusBar.systemStatusBar().statusItemWithLength_(
@@ -86,6 +92,12 @@ class MenuBarIcon:
         show_item.setTarget_(self.delegate)
         menu.addItem_(show_item)
         self.show_item = show_item
+
+        clear_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "Clear", "clearClipboard:", ""
+        )
+        clear_item.setTarget_(self.delegate)
+        menu.addItem_(clear_item)
 
         menu.addItem_(NSMenuItem.separatorItem())
 
@@ -259,8 +271,11 @@ class ClipboardWindow(NSObject):
             self.pasteboard.clearContents()
             self.pasteboard.setString_forType_(text, NSPasteboardTypeString)
             self.last_change_count = self.pasteboard.changeCount()
-            if not text and self.menu_bar:
-                self.menu_bar.hide_badge()
+            if self.menu_bar:
+                if text:
+                    self.menu_bar.show_badge()
+                else:
+                    self.menu_bar.hide_badge()
 
     # -- Clipboard I/O --
 
@@ -390,7 +405,6 @@ class ClipboardWindow(NSObject):
         self.visible = False
         if self.menu_bar:
             self.menu_bar.set_title("Show Window")
-            self.menu_bar.hide_badge()
 
     def toggle(self):
         if self.visible:
@@ -502,6 +516,7 @@ class AppDelegate(NSObject):
         cw.menu_bar = MenuBarIcon(
             on_toggle=cw.toggle,
             on_quit=cw.quit_app,
+            on_clear=cw.clearClipboard_,
         )
 
         # Clipboard polling timer
