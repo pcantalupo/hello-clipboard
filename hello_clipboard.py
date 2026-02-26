@@ -113,9 +113,10 @@ class ClipboardWindow(NSObject):
         self.window = None
         self.scroll_view = None
         self.text_view = None
-        self.image_container = None
         self.image_view = None
         self.clear_button = None
+        self.main_container = None
+        self.bottom_bar = None
         return self
 
     # -- Window setup --
@@ -130,13 +131,39 @@ class ClipboardWindow(NSObject):
         self.window.setDelegate_(self)
         self.window.setMinSize_((300, 200))
 
+    def setup_main_container(self):
+        from AppKit import NSView
+        frame = self.window.contentView().bounds()
+        self.main_container = NSView.alloc().initWithFrame_(frame)
+        self.main_container.setAutoresizingMask_(0x12)
+
+        # Bottom bar with Clear button (always visible)
+        toolbar_height = 44
+        toolbar_frame = NSMakeRect(0, 0, frame.size.width, toolbar_height)
+        self.bottom_bar = NSView.alloc().initWithFrame_(toolbar_frame)
+        self.bottom_bar.setAutoresizingMask_(0x22)  # flexible width, pin to bottom
+
+        btn_frame = NSMakeRect((frame.size.width - 80) / 2, 8, 80, 28)
+        self.clear_button = NSButton.alloc().initWithFrame_(btn_frame)
+        self.clear_button.setTitle_("Clear")
+        self.clear_button.setBezelStyle_(NSBezelStyleRounded)
+        self.clear_button.setTarget_(self)
+        self.clear_button.setAction_("clearClipboard:")
+        self.clear_button.setAutoresizingMask_(0x04)  # centered horizontally
+        self.bottom_bar.addSubview_(self.clear_button)
+
+        self.main_container.addSubview_(self.bottom_bar)
+        self.window.setContentView_(self.main_container)
+
     def setup_text_view(self):
         frame = self.window.contentView().bounds()
-        self.scroll_view = NSScrollView.alloc().initWithFrame_(frame)
+        toolbar_height = 44
+        content_frame = NSMakeRect(0, toolbar_height, frame.size.width, frame.size.height - toolbar_height)
+        self.scroll_view = NSScrollView.alloc().initWithFrame_(content_frame)
         self.scroll_view.setHasVerticalScroller_(True)
         self.scroll_view.setAutoresizingMask_(0x12)  # width + height flexible
 
-        text_frame = NSMakeRect(0, 0, frame.size.width, frame.size.height)
+        text_frame = NSMakeRect(0, 0, content_frame.size.width, content_frame.size.height)
         self.text_view = NSTextView.alloc().initWithFrame_(text_frame)
         self.text_view.setFont_(NSFont.fontWithName_size_("Monaco", 12))
         self.text_view.setRichText_(False)
@@ -144,7 +171,7 @@ class ClipboardWindow(NSObject):
         self.text_view.setAutomaticDashSubstitutionEnabled_(False)
         self.text_view.setAutomaticTextReplacementEnabled_(False)
         # Allow text view to resize with scroll view
-        self.text_view.setMinSize_((0, frame.size.height))
+        self.text_view.setMinSize_((0, content_frame.size.height))
         self.text_view.setMaxSize_((1e7, 1e7))
         self.text_view.setVerticallyResizable_(True)
         self.text_view.setHorizontallyResizable_(False)
@@ -167,29 +194,11 @@ class ClipboardWindow(NSObject):
 
     def setup_image_view(self):
         frame = self.window.contentView().bounds()
-        from AppKit import NSView
-        self.image_container = NSView.alloc().initWithFrame_(frame)
-        self.image_container.setAutoresizingMask_(0x12)
-
-        # Image view fills container except bottom 40px for button
-        img_frame = NSMakeRect(0, 40, frame.size.width, frame.size.height - 40)
+        toolbar_height = 44
+        img_frame = NSMakeRect(0, toolbar_height, frame.size.width, frame.size.height - toolbar_height)
         self.image_view = NSImageView.alloc().initWithFrame_(img_frame)
         self.image_view.setImageScaling_(NSImageScaleProportionallyUpOrDown)
         self.image_view.setAutoresizingMask_(0x12)
-        self.image_container.addSubview_(self.image_view)
-
-        # Clear button at bottom center
-        btn_frame = NSMakeRect(
-            (frame.size.width - 80) / 2, 8, 80, 28
-        )
-        self.clear_button = NSButton.alloc().initWithFrame_(btn_frame)
-        self.clear_button.setTitle_("Clear")
-        self.clear_button.setBezelStyle_(NSBezelStyleRounded)
-        self.clear_button.setTarget_(self)
-        self.clear_button.setAction_("clearClipboard:")
-        # Keep button horizontally centered
-        self.clear_button.setAutoresizingMask_(0x04)  # flexible left + right margins
-        self.image_container.addSubview_(self.clear_button)
 
     # -- Text change handler --
 
@@ -227,8 +236,6 @@ class ClipboardWindow(NSObject):
 
     @objc.typedSelector(b"v@:@")
     def clearClipboard_(self, sender):
-        if self.current_mode != 'image':
-            return
         self.pasteboard.clearContents()
         self.last_change_count = self.pasteboard.changeCount()
         self.current_image = None
@@ -243,13 +250,19 @@ class ClipboardWindow(NSObject):
         if self.current_mode == 'text' and not force:
             return
         self.current_mode = 'text'
-        self.window.setContentView_(self.scroll_view)
+        if self.image_view.superview():
+            self.image_view.removeFromSuperview()
+        if not self.scroll_view.superview():
+            self.main_container.addSubview_(self.scroll_view)
 
     def show_image_mode(self):
         if self.current_mode == 'image':
             return
         self.current_mode = 'image'
-        self.window.setContentView_(self.image_container)
+        if self.scroll_view.superview():
+            self.scroll_view.removeFromSuperview()
+        if not self.image_view.superview():
+            self.main_container.addSubview_(self.image_view)
 
     # -- Update window from clipboard --
 
@@ -402,11 +415,12 @@ class AppDelegate(NSObject):
 
         cw.setup_window()
         cw.setup_main_menu()
+        cw.setup_main_container()
         cw.setup_text_view()
         cw.setup_image_view()
 
         # Start in text mode
-        cw.window.setContentView_(cw.scroll_view)
+        cw.main_container.addSubview_(cw.scroll_view)
 
         # Load initial clipboard content
         content_type, data = cw.get_clipboard_content()
