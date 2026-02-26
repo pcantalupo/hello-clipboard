@@ -199,7 +199,7 @@ class ClipboardWindow(NSObject):
         self.clear_button.setBezelStyle_(NSBezelStyleRounded)
         self.clear_button.setTarget_(self)
         self.clear_button.setAction_("clearClipboard:")
-        self.clear_button.setAutoresizingMask_(0x04)  # centered horizontally
+        self.clear_button.setAutoresizingMask_(0x05)  # centered horizontally
         self.bottom_bar.addSubview_(self.clear_button)
 
         self.main_container.addSubview_(self.bottom_bar)
@@ -215,7 +215,7 @@ class ClipboardWindow(NSObject):
 
         text_frame = NSMakeRect(0, 0, content_frame.size.width, content_frame.size.height)
         self.text_view = NSTextView.alloc().initWithFrame_(text_frame)
-        self.text_view.setFont_(NSFont.fontWithName_size_("Monaco", 12))
+        self.text_view.setFont_(NSFont.fontWithName_size_("Monaco", 16))
         self.text_view.setRichText_(False)
         self.text_view.setAutomaticQuoteSubstitutionEnabled_(False)
         self.text_view.setAutomaticDashSubstitutionEnabled_(False)
@@ -300,6 +300,12 @@ class ClipboardWindow(NSObject):
 
     # -- Mode switching --
 
+    def _content_frame(self):
+        """Current frame for content views: full container minus bottom toolbar."""
+        toolbar_height = 44
+        b = self.main_container.bounds()
+        return NSMakeRect(0, toolbar_height, b.size.width, b.size.height - toolbar_height)
+
     def show_text_mode(self, force=False):
         if self.current_mode == 'text' and not force:
             return
@@ -307,6 +313,7 @@ class ClipboardWindow(NSObject):
         if self.image_view.superview():
             self.image_view.removeFromSuperview()
         if not self.scroll_view.superview():
+            self.scroll_view.setFrame_(self._content_frame())
             self.main_container.addSubview_(self.scroll_view)
 
     def show_image_mode(self):
@@ -316,6 +323,7 @@ class ClipboardWindow(NSObject):
         if self.scroll_view.superview():
             self.scroll_view.removeFromSuperview()
         if not self.image_view.superview():
+            self.image_view.setFrame_(self._content_frame())
             self.main_container.addSubview_(self.image_view)
 
     # -- Update window from clipboard --
