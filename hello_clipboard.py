@@ -250,6 +250,8 @@ class ClipboardWindow(NSObject):
             self.pasteboard.clearContents()
             self.pasteboard.setString_forType_(text, NSPasteboardTypeString)
             self.last_change_count = self.pasteboard.changeCount()
+            if not text and self.menu_bar:
+                self.menu_bar.hide_badge()
 
     # -- Clipboard I/O --
 
@@ -286,6 +288,8 @@ class ClipboardWindow(NSObject):
         self.updating_from_clipboard = True
         self.text_view.setString_("")
         self.updating_from_clipboard = False
+        if self.menu_bar:
+            self.menu_bar.hide_badge()
 
     # -- Mode switching --
 
@@ -330,7 +334,7 @@ class ClipboardWindow(NSObject):
             content_type, data = self.get_clipboard_content()
             if content_type != 'empty':
                 self.update_window(content_type, data)
-                if not self.visible and self.menu_bar:
+                if self.menu_bar:
                     self.menu_bar.show_badge()
 
     # -- Window delegate --
@@ -359,13 +363,13 @@ class ClipboardWindow(NSObject):
         self.visible = True
         if self.menu_bar:
             self.menu_bar.set_title("Hide Window")
-            self.menu_bar.hide_badge()
 
     def hide(self):
         self.window.orderOut_(None)
         self.visible = False
         if self.menu_bar:
             self.menu_bar.set_title("Show Window")
+            self.menu_bar.hide_badge()
 
     def toggle(self):
         if self.visible:
@@ -492,6 +496,8 @@ class AppDelegate(NSObject):
 
         # Start hidden
         cw.hide()
+        if content_type != 'empty':
+            cw.menu_bar.show_badge()
 
     def applicationShouldHandleReopen_hasVisibleWindows_(self, app, has_visible_windows):
         """Show the window when the app is reopened (e.g., clicked in Finder or Activity Monitor)."""
