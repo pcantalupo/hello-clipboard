@@ -6,9 +6,12 @@ from AppKit import (
     NSApplicationActivationPolicyAccessory,
     NSBackingStoreBuffered,
     NSBezelStyleRounded,
+    NSBezierPath,
     NSButton,
     NSClosableWindowMask,
+    NSColor,
     NSFont,
+    NSFontAttributeName,
     NSImage,
     NSImageScaleProportionallyUpOrDown,
     NSImageView,
@@ -28,7 +31,7 @@ from AppKit import (
     NSVariableStatusItemLength,
     NSWindow,
 )
-from Foundation import NSMakeRect, NSObject, NSTimer
+from Foundation import NSAttributedString, NSMakeRect, NSObject, NSTimer
 
 
 NSTextDidChangeNotification = "NSTextDidChangeNotification"
@@ -57,6 +60,8 @@ class MenuBarDelegate(NSObject):
 class MenuBarIcon:
     """macOS menu bar icon using PyObjC."""
 
+    _ICON_SIZE = 18.0
+
     def __init__(self, on_toggle, on_quit):
         app = NSApplication.sharedApplication()
         app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
@@ -69,7 +74,8 @@ class MenuBarIcon:
         self.status_item = NSStatusBar.systemStatusBar().statusItemWithLength_(
             NSVariableStatusItemLength
         )
-        self.status_item.setTitle_("📋")
+        self._badge_visible = False
+        self.status_item.button().setImage_(self._make_image(with_badge=False))
         self.status_item.setHighlightMode_(True)
 
         menu = NSMenu.alloc().init()
@@ -90,6 +96,50 @@ class MenuBarIcon:
         menu.addItem_(quit_item)
 
         self.status_item.setMenu_(menu)
+
+    def _make_image(self, with_badge=False):
+        """Create a status bar image with optional small red badge in the upper-right corner."""
+        size = self._ICON_SIZE
+        image = NSImage.alloc().initWithSize_((size, size))
+        image.lockFocus()
+
+        # Draw the clipboard emoji
+        font = NSFont.systemFontOfSize_(size - 4)
+        astr = NSAttributedString.alloc().initWithString_attributes_(
+            "📋", {NSFontAttributeName: font}
+        )
+        astr.drawAtPoint_((1, 0))
+
+        if with_badge:
+            # Small red circle in upper-right corner, ~25% of icon size
+            badge_d = size * 0.28   # ~5px diameter
+            badge_x = size - badge_d - 0.5
+            badge_y = size - badge_d - 0.5
+            # White outline for contrast against any background
+            NSColor.whiteColor().setFill()
+            NSBezierPath.bezierPathWithOvalInRect_(
+                NSMakeRect(badge_x - 1.0, badge_y - 1.0, badge_d + 2.0, badge_d + 2.0)
+            ).fill()
+            # Red fill
+            NSColor.redColor().setFill()
+            NSBezierPath.bezierPathWithOvalInRect_(
+                NSMakeRect(badge_x, badge_y, badge_d, badge_d)
+            ).fill()
+
+        image.unlockFocus()
+        return image
+
+    def show_badge(self):
+        """Show a small red badge on the menu bar icon."""
+        if not self._badge_visible:
+            self._badge_visible = True
+            self.status_item.button().setImage_(self._make_image(with_badge=True))
+
+    def hide_badge(self):
+        """Hide the red badge from the menu bar icon."""
+        if self._badge_visible:
+            self._badge_visible = False
+            self.status_item.button().setImage_(self._make_image(with_badge=False))
 
     def set_title(self, title):
         self.show_item.setTitle_(title)
@@ -280,6 +330,8 @@ class ClipboardWindow(NSObject):
             content_type, data = self.get_clipboard_content()
             if content_type != 'empty':
                 self.update_window(content_type, data)
+                if not self.visible and self.menu_bar:
+                    self.menu_bar.show_badge()
 
     # -- Window delegate --
 
@@ -307,6 +359,7 @@ class ClipboardWindow(NSObject):
         self.visible = True
         if self.menu_bar:
             self.menu_bar.set_title("Hide Window")
+            self.menu_bar.hide_badge()
 
     def hide(self):
         self.window.orderOut_(None)
