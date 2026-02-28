@@ -21,7 +21,7 @@ A macOS menu bar app that lets you see and edit your clipboard in a floating win
 ## Installation
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/pcantalupo/hello-clipboard.git
 cd hello-clipboard
 ./install.sh
 ```
@@ -88,7 +88,11 @@ cat /tmp/hello-clipboard.err
 ./uninstall.sh
 ```
 
-This unloads the LaunchAgent and removes the plist from `~/Library/LaunchAgents/`. The project directory and venv are left intact.
+This unloads the LaunchAgent, kills any running Hello Clipboard process, and removes the plist from `~/Library/LaunchAgents/`. The project directory and venv are left intact.
+
+## License
+
+MIT — see [LICENSE](LICENSE) for details.
 
 ## Project structure
 
