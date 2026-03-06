@@ -19,6 +19,8 @@ from AppKit import (
     NSMenuItem,
     NSMiniaturizableWindowMask,
     NSNotificationCenter,
+    NSOffState,
+    NSOnState,
     NSPasteboard,
     NSPasteboardTypePNG,
     NSPasteboardTypeTIFF,
@@ -36,6 +38,15 @@ from Foundation import NSAttributedString, NSMakeRect, NSObject, NSTimer
 
 NSTextDidChangeNotification = "NSTextDidChangeNotification"
 
+# Auto-clear interval options: (menu label, seconds). 0 = disabled.
+AUTO_CLEAR_INTERVALS = [
+    ("Disabled", 0),
+    ("1 Hour", 3600),
+    ("4 Hours", 14400),
+    ("8 Hours", 28800),
+    ("24 Hours", 86400),
+]
+
 
 class MenuBarDelegate(NSObject):
     """NSObject subclass so macOS recognizes the action targets."""
@@ -47,6 +58,7 @@ class MenuBarDelegate(NSObject):
         self.on_toggle = callbacks["on_toggle"]
         self.on_quit = callbacks["on_quit"]
         self.on_clear = callbacks["on_clear"]
+        self.on_set_auto_clear = callbacks["on_set_auto_clear"]
         return self
 
     @objc.typedSelector(b"v@:@")
@@ -58,6 +70,14 @@ class MenuBarDelegate(NSObject):
         self.on_clear(None)
 
     @objc.typedSelector(b"v@:@")
+    def setAutoClearInterval_(self, sender):
+        seconds = sender.representedObject()
+        self.on_set_auto_clear(seconds)
+        # Update checkmarks on all sibling items
+        for item in sender.menu().itemArray():
+            item.setState_(NSOnState if item == sender else NSOffState)
+
+    @objc.typedSelector(b"v@:@")
     def quitApp_(self, sender):
         self.on_quit()
 
@@ -67,7 +87,7 @@ class MenuBarIcon:
 
     _ICON_SIZE = 18.0
 
-    def __init__(self, on_toggle, on_quit, on_clear):
+    def __init__(self, on_toggle, on_quit, on_clear, on_set_auto_clear):
         app = NSApplication.sharedApplication()
         app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
 
@@ -75,6 +95,7 @@ class MenuBarIcon:
             "on_toggle": on_toggle,
             "on_quit": on_quit,
             "on_clear": on_clear,
+            "on_set_auto_clear": on_set_auto_clear,
         })
 
         self.status_item = NSStatusBar.systemStatusBar().statusItemWithLength_(
@@ -98,6 +119,22 @@ class MenuBarIcon:
         )
         clear_item.setTarget_(self.delegate)
         menu.addItem_(clear_item)
+
+        # Auto Clear submenu
+        auto_clear_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "Auto Clear", "", ""
+        )
+        auto_clear_menu = NSMenu.alloc().initWithTitle_("Auto Clear")
+        for label, secs in AUTO_CLEAR_INTERVALS:
+            item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                label, "setAutoClearInterval:", ""
+            )
+            item.setTarget_(self.delegate)
+            item.setRepresentedObject_(secs)
+            item.setState_(NSOnState if secs == 0 else NSOffState)
+            auto_clear_menu.addItem_(item)
+        auto_clear_item.setSubmenu_(auto_clear_menu)
+        menu.addItem_(auto_clear_item)
 
         menu.addItem_(NSMenuItem.separatorItem())
 
@@ -179,6 +216,8 @@ class ClipboardWindow(NSObject):
         self.clear_button = None
         self.main_container = None
         self.bottom_bar = None
+        self.auto_clear_interval = 0
+        self.auto_clear_timer = None
         return self
 
     # -- Window setup --
@@ -313,6 +352,21 @@ class ClipboardWindow(NSObject):
         if self.menu_bar:
             self.menu_bar.hide_badge()
 
+    # -- Auto-clear timer --
+
+    def set_auto_clear_interval(self, seconds):
+        """Set (or disable) the periodic clipboard auto-clear."""
+        if self.auto_clear_timer:
+            self.auto_clear_timer.invalidate()
+            self.auto_clear_timer = None
+        self.auto_clear_interval = seconds
+        if seconds > 0:
+            self.auto_clear_timer = (
+                NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+                    seconds, self, "clearClipboard:", None, True
+                )
+            )
+
     # -- Mode switching --
 
     def _content_frame(self):
@@ -416,6 +470,9 @@ class ClipboardWindow(NSObject):
         if self.timer:
             self.timer.invalidate()
             self.timer = None
+        if self.auto_clear_timer:
+            self.auto_clear_timer.invalidate()
+            self.auto_clear_timer = None
         NSApplication.sharedApplication().terminate_(None)
 
     # -- Main menu (Cmd+W support) --
@@ -517,6 +574,7 @@ class AppDelegate(NSObject):
             on_toggle=cw.toggle,
             on_quit=cw.quit_app,
             on_clear=cw.clearClipboard_,
+            on_set_auto_clear=cw.set_auto_clear_interval,
         )
 
         # Clipboard polling timer
@@ -543,11 +601,14 @@ class AppDelegate(NSObject):
         return True
 
     def applicationWillTerminate_(self, notification):
-        """Invalidate the clipboard polling timer on app termination."""
+        """Invalidate timers on app termination."""
         cw = self.clipboard_window
         if cw.timer:
             cw.timer.invalidate()
             cw.timer = None
+        if cw.auto_clear_timer:
+            cw.auto_clear_timer.invalidate()
+            cw.auto_clear_timer = None
 
 
 def main():
