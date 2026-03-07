@@ -1,3 +1,9 @@
+v1.0.1 (2026-03-07)
+-------------------
+- Fix false positives: bare keywords (PowerShell, IEX, certutil, etc.) no longer
+  trigger warnings without command-like context (flags, operators, or URLs)
+- Dangerous commands with flags/operators/URLs still trigger at high confidence
+
 v1.0.0 (2026-03-07)
 -------------------
 - Add ClickFix clipboard attack detection with floating warning dialog
