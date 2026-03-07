@@ -1,0 +1,9 @@
+v1.0.0 (2026-03-07)
+-------------------
+- Add ClickFix clipboard attack detection with floating warning dialog
+- Red badge on menu bar icon when clipboard contains content
+- 5-minute auto-clear timer enabled by default
+- Warning dialog is non-modal: menu bar remains accessible while alert is shown
+- Red badge shown before warning dialog appears on launch
+- Friendly, plain-language warning message identifying Hello Clipboard as the source
+- Auto-clear timer configurable from menu bar (Disabled / 30s / 5min / 1hr / 24hr)

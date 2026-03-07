@@ -9,6 +9,7 @@ A macOS menu bar app that lets you see and edit your clipboard in a floating win
 - Opens an editable text window where you can view and modify clipboard contents — edits are written back to the clipboard in real time
 - Displays copied images with scaling to fit the window
 - Closing the window hides it (use the menu bar icon to reopen, or "Quit" to exit)
+- Detects and warns about ClickFix clipboard attacks before you accidentally paste a harmful command
 
 ## Requirements
 
@@ -69,6 +70,23 @@ After installation, Hello Clipboard starts automatically on login. To interact w
 - **Hide the window** — press Cmd+W, click the window's close button, or click "Hide Window" in the menu bar
 - **Quit** — click "Quit" in the menu bar
 
+### Red badge
+
+When your clipboard contains any text, a small red dot appears on the 📋 menu bar icon as a reminder. It disappears when the clipboard is cleared.
+
+### ClickFix protection
+
+Hello Clipboard watches for clipboard content that looks like a malicious command — a social-engineering technique called [ClickFix](https://www.malwarebytes.com/blog/threat-intelligence/2024/03/clickfix-how-to-infect-your-pc-by-following-fake-instructions), where attackers trick users into copying and pasting harmful commands into Terminal.
+
+When a potential threat is detected, a warning appears immediately:
+
+![ClickFix warning dialog](docs/clickfix-warning.png)
+
+- **Clear Clipboard** — removes the dangerous content immediately (recommended)
+- **Dismiss** — closes the warning without clearing; the red badge remains on the menu bar icon
+
+The warning appears on launch if malicious content is already on the clipboard when Hello Clipboard starts, and also whenever new suspicious content is copied during normal use. The menu bar remains fully accessible while the warning is shown.
+
 ### Run manually (without LaunchAgent)
 
 ```bash
@@ -99,8 +117,10 @@ MIT — see [LICENSE](LICENSE) for details.
 ```
 hello-clipboard/
 ├── hello_clipboard.py     # Main application (pure AppKit, no tkinter)
+├── detection.py           # ClickFix clipboard threat detection
 ├── pyproject.toml         # Python packaging and dependencies
 ├── install.sh             # Sets up venv, deps, and LaunchAgent
 ├── uninstall.sh           # Removes LaunchAgent and kills running process
+├── docs/                  # Screenshots and documentation assets
 └── .venv/                 # Created by install.sh (not committed)
 ```
