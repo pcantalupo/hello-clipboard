@@ -2,6 +2,7 @@
 import objc
 import signal
 from AppKit import (
+    NSAlert,
     NSApplication,
     NSApplicationActivationPolicyAccessory,
     NSBackingStoreBuffered,
@@ -34,9 +35,11 @@ from AppKit import (
     NSWindow,
 )
 from Foundation import NSAttributedString, NSMakeRect, NSObject, NSTimer
+from detection import check_for_suspicious_content
 
 
 NSTextDidChangeNotification = "NSTextDidChangeNotification"
+
 
 # Auto-clear interval choices: (label, seconds). 0 = disabled.
 AUTO_CLEAR_INTERVALS = [
@@ -416,6 +419,17 @@ class ClipboardWindow(NSObject):
 
     # -- Clipboard polling --
 
+    def _notify_suspicious(self, message):
+        alert = NSAlert.alloc().init()
+        alert.setMessageText_("⚠️ Suspicious Clipboard Content")
+        alert.setInformativeText_(message)
+        alert.addButtonWithTitle_("Clear Clipboard")
+        alert.addButtonWithTitle_("Dismiss")
+        alert.setAlertStyle_(2)  # NSAlertStyleCritical
+        response = alert.runModal()
+        if response == 1000:  # NSAlertFirstButtonReturn = Clear Clipboard
+            self.clearClipboard_(None)
+
     @objc.typedSelector(b"v@:@")
     def checkClipboard_(self, timer):
         current_count = self.pasteboard.changeCount()
@@ -426,6 +440,10 @@ class ClipboardWindow(NSObject):
                 self.update_window(content_type, data)
                 if self.menu_bar:
                     self.menu_bar.show_badge()
+            if content_type == 'text' and data:
+                warning = check_for_suspicious_content(data)
+                if warning:
+                    self._notify_suspicious(warning)
 
     # -- Window delegate --
 
@@ -577,6 +595,12 @@ class AppDelegate(NSObject):
             on_set_auto_clear=cw.set_auto_clear_interval,
         )
 
+        # Check initial clipboard content for suspicious payloads (after menu bar exists)
+        if content_type == 'text' and data:
+            warning = check_for_suspicious_content(data)
+            if warning:
+                cw._notify_suspicious(warning)
+
         # Clipboard polling timer
         cw.timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
             0.5, cw, "checkClipboard:", None, True
@@ -594,7 +618,7 @@ class AppDelegate(NSObject):
 
         # Start hidden
         cw.hide()
-        if content_type != 'empty':
+        if cw.get_clipboard_content()[0] != 'empty':
             cw.menu_bar.show_badge()
 
     def applicationShouldHandleReopen_hasVisibleWindows_(self, app, has_visible_windows):

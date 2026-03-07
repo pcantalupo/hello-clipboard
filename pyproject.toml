@@ -12,5 +12,8 @@ dependencies = [
     "pyobjc-framework-Cocoa",
 ]
 
+[tool.setuptools]
+py-modules = ["hello_clipboard", "detection"]
+
 [project.scripts]
 hello-clipboard = "hello_clipboard:main"
