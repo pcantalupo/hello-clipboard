@@ -3,9 +3,13 @@ import re
 
 # Detection patterns: (compiled_regex, confidence)
 _SUSPICIOUS_PATTERNS = [
-    # Group A: pipe-to-shell
-    (re.compile(r'curl\s+\S+\s*\|\s*(ba)?sh', re.I), 'high'),
-    (re.compile(r'wget\s+\S+\s*\|\s*(ba)?sh', re.I), 'high'),
+    # Group A: pipe-to-shell (sh, bash, or zsh)
+    (re.compile(r'curl\s+\S+\s*\|\s*(ba|z)?sh', re.I), 'high'),
+    (re.compile(r'wget\s+\S+\s*\|\s*(ba|z)?sh', re.I), 'high'),
+    # base64 decode piped to shell — covers macOS (-D) and Linux (-d) flags
+    (re.compile(r'base64\s+-[dD]\s*\|\s*(ba|z)?sh', re.I), 'high'),
+    # pipe directly to osascript (with or without -e flag)
+    (re.compile(r'\|\s*osascript\b', re.I), 'high'),
     # Group B: known malicious commands — require command-like context for high confidence
     # powershell: high with flags/operators; medium for bare mention
     (re.compile(r'\bpowershell\b\s+[-/]|\bpowershell\b\s*[|&;]|\|\s*powershell\b', re.I), 'high'),
@@ -22,6 +26,8 @@ _SUSPICIOUS_PATTERNS = [
     # mshta/certutil/bitsadmin: high with flags or URLs; medium for bare mention
     (re.compile(r'\b(mshta|certutil|bitsadmin)\b\s+[-/]|\b(mshta|certutil|bitsadmin)\b.*https?://', re.I), 'high'),
     (re.compile(r'\b(mshta|certutil|bitsadmin)\b', re.I), 'medium'),
+    # Windows cmd /c prefix (medium — common in cross-platform ClickFix payloads)
+    (re.compile(r'\bcmd\s+/c\b', re.I), 'medium'),
     # Group C: suspicious payload URLs
     (re.compile(r'https?://\S+\.(ps1|sh|bat|exe)\b', re.I), 'medium'),
 ]
