@@ -430,7 +430,7 @@ class ClipboardWindow(NSObject):
         alert.setMessageText_("Hello Clipboard detected a potential threat")
         alert.setInformativeText_(
             "Your clipboard contains a command that looks like it could be used to harm your "
-            "computer — a technique called \"ClickFix.\"\n\n"
+            "computer.\n\n"
             "Do not paste this into Terminal or any other app. It\u2019s safe to clear it now."
         )
         alert.addButtonWithTitle_("Clear Clipboard")

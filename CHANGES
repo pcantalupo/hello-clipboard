@@ -1,3 +1,9 @@
+v1.0.2 (2026-03-07)
+-------------------
+- Replace security jargon with plain language in user-facing text (README, alert dialog)
+- Add new warning dialog screenshot
+- Remove broken Malwarebytes link from README
+
 v1.0.1 (2026-03-07)
 -------------------
 - Fix false positives: bare keywords (PowerShell, IEX, certutil, etc.) no longer
