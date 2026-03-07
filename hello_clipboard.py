@@ -32,6 +32,7 @@ from AppKit import (
     NSTitledWindowMask,
     NSTextView,
     NSVariableStatusItemLength,
+    NSFloatingWindowLevel,
     NSWindow,
 )
 from Foundation import NSAttributedString, NSMakeRect, NSObject, NSTimer
@@ -215,6 +216,7 @@ class ClipboardWindow(NSObject):
         self.auto_clear_interval = 300  # default to 5 minutes
         self.auto_clear_timer = None
         self.window = None
+        self._alert_window = None
         self.scroll_view = None
         self.text_view = None
         self.image_view = None
@@ -419,16 +421,42 @@ class ClipboardWindow(NSObject):
 
     # -- Clipboard polling --
 
+    @objc.typedSelector(b"v@:@")
+    def notifySuspiciousDeferred_(self, timer):
+        self._notify_suspicious(timer.userInfo())
+
     def _notify_suspicious(self, message):
         alert = NSAlert.alloc().init()
-        alert.setMessageText_("⚠️ Suspicious Clipboard Content")
-        alert.setInformativeText_(message)
+        alert.setMessageText_("Hello Clipboard detected a potential threat")
+        alert.setInformativeText_(
+            "Your clipboard contains a command that looks like it could be used to harm your "
+            "computer — a technique called \"ClickFix.\"\n\n"
+            "Do not paste this into Terminal or any other app. It\u2019s safe to clear it now."
+        )
         alert.addButtonWithTitle_("Clear Clipboard")
         alert.addButtonWithTitle_("Dismiss")
         alert.setAlertStyle_(2)  # NSAlertStyleCritical
-        response = alert.runModal()
-        if response == 1000:  # NSAlertFirstButtonReturn = Clear Clipboard
-            self.clearClipboard_(None)
+        alert.layout()
+        # Wire buttons manually so the window is non-modal (menus stay active)
+        alert.buttons()[0].setTarget_(self)
+        alert.buttons()[0].setAction_("alertClearClipboard:")
+        alert.buttons()[1].setTarget_(self)
+        alert.buttons()[1].setAction_("alertDismiss:")
+        self._alert_window = alert.window()
+        self._alert_window.setLevel_(NSFloatingWindowLevel)
+        self._alert_window.center()
+        self._alert_window.makeKeyAndOrderFront_(None)
+
+    @objc.typedSelector(b"v@:@")
+    def alertClearClipboard_(self, sender):
+        self._alert_window.close()
+        self._alert_window = None
+        self.clearClipboard_(None)
+
+    @objc.typedSelector(b"v@:@")
+    def alertDismiss_(self, sender):
+        self._alert_window.close()
+        self._alert_window = None
 
     @objc.typedSelector(b"v@:@")
     def checkClipboard_(self, timer):
@@ -599,7 +627,10 @@ class AppDelegate(NSObject):
         if content_type == 'text' and data:
             warning = check_for_suspicious_content(data)
             if warning:
-                cw._notify_suspicious(warning)
+                cw.menu_bar.show_badge()
+                NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+                    0.0, cw, "notifySuspiciousDeferred:", warning, False
+                )
 
         # Clipboard polling timer
         cw.timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
