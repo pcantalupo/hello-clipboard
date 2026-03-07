@@ -41,9 +41,9 @@ NSTextDidChangeNotification = "NSTextDidChangeNotification"
 # Auto-clear interval choices: (label, seconds). 0 = disabled.
 AUTO_CLEAR_INTERVALS = [
     ("Disabled", 0),
+    ("30 Seconds", 30),
+    ("5 Minutes", 300),
     ("1 Hour", 3600),
-    ("4 Hours", 14400),
-    ("8 Hours", 28800),
     ("24 Hours", 86400),
 ]
 
@@ -131,7 +131,7 @@ class MenuBarIcon:
             )
             item.setTarget_(self.delegate)
             item.setRepresentedObject_(secs)
-            item.setState_(NSOnState if secs == 0 else NSOffState)
+            item.setState_(NSOnState if secs == 300 else NSOffState)
             auto_clear_menu.addItem_(item)
         auto_clear_item.setSubmenu_(auto_clear_menu)
         menu.addItem_(auto_clear_item)
@@ -209,7 +209,7 @@ class ClipboardWindow(NSObject):
         self.current_image = None
         self.updating_from_clipboard = False
         self.timer = None
-        self.auto_clear_interval = 0
+        self.auto_clear_interval = 300  # default to 5 minutes
         self.auto_clear_timer = None
         self.window = None
         self.scroll_view = None
@@ -581,6 +581,9 @@ class AppDelegate(NSObject):
         cw.timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
             0.5, cw, "checkClipboard:", None, True
         )
+
+        # Start auto-clear timer with default interval
+        cw.set_auto_clear_interval(cw.auto_clear_interval)
 
         # SIGINT (Ctrl+C) support: install handler now and re-register every second
         # because Cocoa's run loop replaces Python's default SIGINT handler.
