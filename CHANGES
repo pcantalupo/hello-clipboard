@@ -1,3 +1,25 @@
+v1.0.6 (2026-03-08)
+-------------------
+- Add finger.exe LOLBIN detection for CrashFix ClickFix variant (issue #17)
+- Extend cmd pattern to also match cmd.exe /c
+- Add broader LOLBIN coverage: rundll32, regsvr32, wscript, cscript (high with
+  flags/URLs, medium for bare mention)
+- Add charcode obfuscation detection: PowerShell [char] casting,
+  String.fromCharCode, and comma-separated numeric blobs (10+ values)
+- Expand test suite to 71 tests with false-positive guards for all new patterns
+
+v1.0.5 (2026-03-08)
+-------------------
+- Remove ClickFix jargon from internal detection code and tests
+- README updates
+
+v1.0.4 (2026-03-08)
+-------------------
+- Drive pyproject.toml version dynamically from VERSION file (single source of truth)
+- Remove unused screenshot and rename test file
+- Remove unnecessary VS Code workspace file
+- Add dist/
+
 v1.0.3 (2026-03-08)
 -------------------
 - Add macOS ClickFix detection patterns: curl/wget pipe to zsh, base64 -D/-d
