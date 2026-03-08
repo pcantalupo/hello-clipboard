@@ -26,8 +26,8 @@ _SUSPICIOUS_PATTERNS = [
     # mshta/certutil/bitsadmin: high with flags or URLs; medium for bare mention
     (re.compile(r'\b(mshta|certutil|bitsadmin)\b\s+[-/]|\b(mshta|certutil|bitsadmin)\b.*https?://', re.I), 'high'),
     (re.compile(r'\b(mshta|certutil|bitsadmin)\b', re.I), 'medium'),
-    # Windows cmd /c prefix (medium — common in cross-platform ClickFix payloads)
-    (re.compile(r'\bcmd\s+/c\b', re.I), 'medium'),
+    # Windows cmd /c prefix (medium — common in cross-platform ClickFix payloads); covers cmd and cmd.exe
+    (re.compile(r'\bcmd(\.exe)?\s+/c\b', re.I), 'medium'),
     # finger.exe LOLBIN (CrashFix): high when used as data fetcher (user@host syntax); medium for bare .exe mention
     (re.compile(r'\bfinger(\.exe)?\s+\S+@\S+', re.I), 'high'),
     (re.compile(r'\bfinger\.exe\b', re.I), 'medium'),
