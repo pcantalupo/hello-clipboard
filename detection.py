@@ -26,8 +26,19 @@ _SUSPICIOUS_PATTERNS = [
     # mshta/certutil/bitsadmin: high with flags or URLs; medium for bare mention
     (re.compile(r'\b(mshta|certutil|bitsadmin)\b\s+[-/]|\b(mshta|certutil|bitsadmin)\b.*https?://', re.I), 'high'),
     (re.compile(r'\b(mshta|certutil|bitsadmin)\b', re.I), 'medium'),
-    # Windows cmd /c prefix (medium — common in cross-platform ClickFix payloads)
-    (re.compile(r'\bcmd\s+/c\b', re.I), 'medium'),
+    # Windows cmd /c prefix (medium — common in cross-platform ClickFix payloads); covers cmd and cmd.exe
+    (re.compile(r'\bcmd(\.exe)?\s+/c\b', re.I), 'medium'),
+    # finger.exe LOLBIN (CrashFix): high when used as data fetcher (user@host syntax); medium for bare .exe mention
+    (re.compile(r'\bfinger(\.exe)?\s+\S+@\S+', re.I), 'high'),
+    (re.compile(r'\bfinger\.exe\b', re.I), 'medium'),
+    # Broader LOLBINs: rundll32, regsvr32, wscript, cscript — high with flags or URLs; medium for bare mention
+    (re.compile(r'\b(rundll32|regsvr32|wscript|cscript)(\.exe)?\b\s+[-/]|\b(rundll32|regsvr32|wscript|cscript)(\.exe)?\b.*https?://', re.I), 'high'),
+    (re.compile(r'\b(rundll32|regsvr32|wscript|cscript)(\.exe)?\b', re.I), 'medium'),
+    # Charcode obfuscation: PowerShell [char] casting, JavaScript String.fromCharCode, numeric blobs
+    (re.compile(r'\[char\]\s*\d{2,3}', re.I), 'medium'),
+    (re.compile(r'String\.fromCharCode\s*\(', re.I), 'medium'),
+    # Comma-separated numeric blob (10+ values) — typical charcode payload encoding
+    (re.compile(r'(?:\b\d{2,3}\b\s*,\s*){9,}\b\d{2,3}\b'), 'medium'),
     # Group C: suspicious payload URLs
     (re.compile(r'https?://\S+\.(ps1|sh|bat|exe)\b', re.I), 'medium'),
 ]
