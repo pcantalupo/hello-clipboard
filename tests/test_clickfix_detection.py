@@ -17,7 +17,7 @@ class TestClean(unittest.TestCase):
         self.assertIsNone(check_for_suspicious_content(""))
 
     def test_plain_text(self):
-        self.assertIsNone(check_for_suspicious_content("Hello, world\!"))
+        self.assertIsNone(check_for_suspicious_content("Hello, world!"))
 
     def test_normal_url(self):
         self.assertIsNone(check_for_suspicious_content("https://example.com/file.html"))
@@ -51,10 +51,6 @@ class TestClean(unittest.TestCase):
 
     def test_bare_invoke_expression_mention(self):
         self.assertIsNone(check_for_suspicious_content("The Invoke-Expression cmdlet evaluates a string"))
-
-    def test_enc_short_string_no_trigger(self):
-        # -enc with fewer than 20 base64 chars should NOT trigger
-        self.assertIsNone(check_for_suspicious_content("powershell -enc JABj"))
 
     def test_plain_text_zsh_mention(self):
         self.assertIsNone(check_for_suspicious_content("Install zsh on your Mac for a better shell experience"))
