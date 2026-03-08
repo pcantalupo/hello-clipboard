@@ -1,4 +1,4 @@
-"""ClickFix clipboard detection — pure Python, no macOS dependencies."""
+"""Malicious clipboard detection — pure Python, no macOS dependencies."""
 import re
 
 # Detection patterns: (compiled_regex, confidence)
@@ -34,7 +34,7 @@ _SUSPICIOUS_PATTERNS = [
 
 
 def check_for_suspicious_content(text):
-    """Return a warning string if text looks like a ClickFix payload, else None."""
+    """Return a warning string if text looks like a malicious payload, else None."""
     if not text or len(text) > 10_000:
         return None
     high = any(p.search(text) for p, lvl in _SUSPICIOUS_PATTERNS if lvl == 'high')
@@ -42,5 +42,5 @@ def check_for_suspicious_content(text):
         len(p.findall(text)) for p, lvl in _SUSPICIOUS_PATTERNS if lvl == 'medium'
     )
     if high or medium_count >= 2:
-        return "Suspicious clipboard content detected — possible ClickFix attack. Do not paste in a terminal."
+        return "Suspicious clipboard content detected — possible malicious payload. Do not paste in a terminal."
     return None

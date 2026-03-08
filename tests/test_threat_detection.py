@@ -1,4 +1,4 @@
-"""Tests for ClickFix clipboard detection."""
+"""Tests for malicious clipboard detection."""
 import sys
 import os
 import unittest
