@@ -1,3 +1,12 @@
+v1.0.3 (2026-03-08)
+-------------------
+- Add macOS ClickFix detection patterns: curl/wget pipe to zsh, base64 -D/-d
+  pipe to shell (macOS and Linux), pipe directly to osascript without -e flag,
+  and cmd /c prefix for cross-platform payloads
+- Expand test suite with 14 new cases covering new patterns and false-positive
+  checks for plain-text mentions of zsh and base64
+- Add tests/__init__.py for proper pytest package discovery
+
 v1.0.2 (2026-03-07)
 -------------------
 - Replace security jargon with plain language in user-facing text (README, alert dialog)

