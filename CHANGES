@@ -1,3 +1,16 @@
+v1.1.0 (2026-03-18)
+-------------------
+- Add clipboard history: the last 25 text and image clipboard entries are
+  stored in memory and accessible via a new "History" submenu in the menu
+  bar icon
+- Click any history entry to instantly restore it to the clipboard and
+  update the main window
+- "Clear History" item at the bottom of the History submenu wipes all
+  stored entries
+- History is seeded with current clipboard content on launch and updated
+  automatically on every clipboard change; consecutive identical text
+  copies are de-duplicated
+
 v1.0.6 (2026-03-08)
 -------------------
 - Add finger.exe LOLBIN detection for CrashFix ClickFix variant (issue #17)
