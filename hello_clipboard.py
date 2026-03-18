@@ -92,7 +92,7 @@ class MenuBarDelegate(NSObject):
 
     @objc.typedSelector(b"v@:@")
     def restoreHistoryItem_(self, sender):
-        index = sender.representedObject()
+        index = int(sender.representedObject())
         self.on_restore_history_item(index)
 
     @objc.typedSelector(b"v@:@")
@@ -458,7 +458,9 @@ class ClipboardWindow(NSObject):
         """Restore a history entry to the clipboard and update the display."""
         if index < 0 or index >= len(self.history):
             return
-        item = self.history[index]
+        item = self.history.pop(index)
+        item["timestamp"] = datetime.datetime.now()
+        self.history.insert(0, item)
         self.pasteboard.clearContents()
         if item["type"] == "text":
             self.pasteboard.setString_forType_(item["data"], NSPasteboardTypeString)
@@ -471,6 +473,8 @@ class ClipboardWindow(NSObject):
             self.update_window(content_type, display_data)
             if self.menu_bar:
                 self.menu_bar.show_badge()
+        if self.menu_bar:
+            self.menu_bar.update_history_menu(self.history)
 
     def clear_history(self):
         """Erase the clipboard history and update the menu."""
@@ -583,6 +587,7 @@ class ClipboardWindow(NSObject):
         current_count = self.pasteboard.changeCount()
         if current_count != self.last_change_count:
             self.last_change_count = current_count
+            raw_image = self._get_raw_image_data()
             content_type, data = self.get_clipboard_content()
             if content_type != 'empty':
                 self.update_window(content_type, data)
@@ -590,10 +595,8 @@ class ClipboardWindow(NSObject):
                     self.menu_bar.show_badge()
                 if content_type == 'text':
                     self.add_to_history('text', data)
-                elif content_type == 'image':
-                    raw = self._get_raw_image_data()
-                    if raw:
-                        self.add_to_history('image', raw)
+                elif content_type == 'image' and raw_image:
+                    self.add_to_history('image', raw_image)
             if content_type == 'text' and data:
                 warning = check_for_suspicious_content(data)
                 if warning:
