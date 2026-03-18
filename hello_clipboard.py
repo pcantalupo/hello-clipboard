@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import datetime
 import objc
 import signal
 from AppKit import (
@@ -42,6 +43,8 @@ from detection import check_for_suspicious_content
 NSTextDidChangeNotification = "NSTextDidChangeNotification"
 
 
+MAX_HISTORY_SIZE = 25
+
 # Auto-clear interval choices: (label, seconds). 0 = disabled.
 AUTO_CLEAR_INTERVALS = [
     ("Disabled", 0),
@@ -63,6 +66,8 @@ class MenuBarDelegate(NSObject):
         self.on_quit = callbacks["on_quit"]
         self.on_clear = callbacks["on_clear"]
         self.on_set_auto_clear = callbacks["on_set_auto_clear"]
+        self.on_restore_history_item = callbacks["on_restore_history_item"]
+        self.on_clear_history = callbacks["on_clear_history"]
         return self
 
     @objc.typedSelector(b"v@:@")
@@ -85,13 +90,23 @@ class MenuBarDelegate(NSObject):
         for item in sender.menu().itemArray():
             item.setState_(NSOnState if item == sender else NSOffState)
 
+    @objc.typedSelector(b"v@:@")
+    def restoreHistoryItem_(self, sender):
+        index = int(sender.representedObject())
+        self.on_restore_history_item(index)
+
+    @objc.typedSelector(b"v@:@")
+    def clearHistory_(self, sender):
+        self.on_clear_history()
+
 
 class MenuBarIcon:
     """macOS menu bar icon using PyObjC."""
 
     _ICON_SIZE = 18.0
 
-    def __init__(self, on_toggle, on_quit, on_clear, on_set_auto_clear):
+    def __init__(self, on_toggle, on_quit, on_clear, on_set_auto_clear,
+                 on_restore_history_item, on_clear_history):
         app = NSApplication.sharedApplication()
         app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
 
@@ -100,6 +115,8 @@ class MenuBarIcon:
             "on_quit": on_quit,
             "on_clear": on_clear,
             "on_set_auto_clear": on_set_auto_clear,
+            "on_restore_history_item": on_restore_history_item,
+            "on_clear_history": on_clear_history,
         })
 
         self.status_item = NSStatusBar.systemStatusBar().statusItemWithLength_(
@@ -139,6 +156,15 @@ class MenuBarIcon:
             auto_clear_menu.addItem_(item)
         auto_clear_item.setSubmenu_(auto_clear_menu)
         menu.addItem_(auto_clear_item)
+
+        # History submenu
+        history_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "History", "", ""
+        )
+        self.history_menu = NSMenu.alloc().initWithTitle_("History")
+        self._populate_empty_history_menu()
+        history_item.setSubmenu_(self.history_menu)
+        menu.addItem_(history_item)
 
         menu.addItem_(NSMenuItem.separatorItem())
 
@@ -197,6 +223,46 @@ class MenuBarIcon:
     def set_title(self, title):
         self.show_item.setTitle_(title)
 
+    def _populate_empty_history_menu(self):
+        empty_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "No History", "", ""
+        )
+        empty_item.setEnabled_(False)
+        self.history_menu.addItem_(empty_item)
+
+    def update_history_menu(self, history):
+        """Rebuild the history submenu from the current history list."""
+        while self.history_menu.numberOfItems() > 0:
+            self.history_menu.removeItemAtIndex_(0)
+
+        if not history:
+            self._populate_empty_history_menu()
+            return
+
+        for i, item in enumerate(history):
+            ts = item["timestamp"].strftime("%H:%M:%S")
+            if item["type"] == "text":
+                preview = item["data"].replace("\n", " ").replace("\r", "")
+                if len(preview) > 50:
+                    preview = preview[:50] + "\u2026"
+                title = f"{ts}  {preview}"
+            else:
+                title = f"{ts}  [Image]"
+
+            menu_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+                title, "restoreHistoryItem:", ""
+            )
+            menu_item.setTarget_(self.delegate)
+            menu_item.setRepresentedObject_(i)
+            self.history_menu.addItem_(menu_item)
+
+        self.history_menu.addItem_(NSMenuItem.separatorItem())
+        clear_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+            "Clear History", "clearHistory:", ""
+        )
+        clear_item.setTarget_(self.delegate)
+        self.history_menu.addItem_(clear_item)
+
 
 class ClipboardWindow(NSObject):
     """Pure AppKit clipboard editor window."""
@@ -215,6 +281,7 @@ class ClipboardWindow(NSObject):
         self.timer = None
         self.auto_clear_interval = 300  # default to 5 minutes
         self.auto_clear_timer = None
+        self.history = []
         self.window = None
         self._alert_window = None
         self.scroll_view = None
@@ -358,6 +425,63 @@ class ClipboardWindow(NSObject):
 
         return ('empty', None)
 
+    def _get_raw_image_data(self):
+        """Return (img_type, NSData) for the current clipboard image, or None."""
+        types = self.pasteboard.types()
+        if types is None:
+            return None
+        for img_type in (NSPasteboardTypePNG, NSPasteboardTypeTIFF):
+            if img_type in types:
+                data = self.pasteboard.dataForType_(img_type)
+                if data:
+                    return (img_type, data)
+        return None
+
+    # -- History --
+
+    def add_to_history(self, content_type, data):
+        """Prepend an item to history, de-dup against the most recent entry, and trim."""
+        if self.history and self.history[0]["type"] == content_type == "text" \
+                and self.history[0]["data"] == data:
+            return
+        self.history.insert(0, {
+            "type": content_type,
+            "data": data,
+            "timestamp": datetime.datetime.now(),
+        })
+        if len(self.history) > MAX_HISTORY_SIZE:
+            self.history = self.history[:MAX_HISTORY_SIZE]
+        if self.menu_bar:
+            self.menu_bar.update_history_menu(self.history)
+
+    def restore_history_item(self, index):
+        """Restore a history entry to the clipboard and update the display."""
+        if index < 0 or index >= len(self.history):
+            return
+        item = self.history.pop(index)
+        item["timestamp"] = datetime.datetime.now()
+        self.history.insert(0, item)
+        self.pasteboard.clearContents()
+        if item["type"] == "text":
+            self.pasteboard.setString_forType_(item["data"], NSPasteboardTypeString)
+        else:
+            img_type, raw_data = item["data"]
+            self.pasteboard.setData_forType_(raw_data, img_type)
+        self.last_change_count = self.pasteboard.changeCount()
+        content_type, display_data = self.get_clipboard_content()
+        if content_type != "empty":
+            self.update_window(content_type, display_data)
+            if self.menu_bar:
+                self.menu_bar.show_badge()
+        if self.menu_bar:
+            self.menu_bar.update_history_menu(self.history)
+
+    def clear_history(self):
+        """Erase the clipboard history and update the menu."""
+        self.history.clear()
+        if self.menu_bar:
+            self.menu_bar.update_history_menu(self.history)
+
     # -- Clear clipboard --
 
     @objc.typedSelector(b"v@:@")
@@ -463,11 +587,16 @@ class ClipboardWindow(NSObject):
         current_count = self.pasteboard.changeCount()
         if current_count != self.last_change_count:
             self.last_change_count = current_count
+            raw_image = self._get_raw_image_data()
             content_type, data = self.get_clipboard_content()
             if content_type != 'empty':
                 self.update_window(content_type, data)
                 if self.menu_bar:
                     self.menu_bar.show_badge()
+                if content_type == 'text':
+                    self.add_to_history('text', data)
+                elif content_type == 'image' and raw_image:
+                    self.add_to_history('image', raw_image)
             if content_type == 'text' and data:
                 warning = check_for_suspicious_content(data)
                 if warning:
@@ -621,7 +750,17 @@ class AppDelegate(NSObject):
             on_quit=cw.quit_app,
             on_clear=cw.clearClipboard_,
             on_set_auto_clear=cw.set_auto_clear_interval,
+            on_restore_history_item=cw.restore_history_item,
+            on_clear_history=cw.clear_history,
         )
+
+        # Seed history with initial clipboard content (after menu bar exists)
+        if content_type == 'text' and data:
+            cw.add_to_history('text', data)
+        elif content_type == 'image' and data:
+            raw = cw._get_raw_image_data()
+            if raw:
+                cw.add_to_history('image', raw)
 
         # Check initial clipboard content for suspicious payloads (after menu bar exists)
         if content_type == 'text' and data:

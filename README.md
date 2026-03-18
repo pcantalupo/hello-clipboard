@@ -7,6 +7,7 @@ Say hello to your clipboard — it's been there all along, and now you can final
 - Adds a 📋 icon to your macOS menu bar
 - Opens an editable text window where you can view and modify clipboard contents — edits are written back to the clipboard in real time
 - Displays copied images with scaling to fit the window
+- Keeps a **history** of the last 25 clipboard entries (text and images) — click any entry in the History submenu to restore it instantly
 - Auto-clears the clipboard on a configurable interval (default: 5 minutes)
 - Closing the window hides it (use the menu bar icon to reopen, or "Quit" to exit)
 - Detects and warns about potentially harmful clipboard commands before you accidentally paste them
@@ -51,6 +52,18 @@ After installation, Hello Clipboard starts automatically on login. To interact w
 - **Clear clipboard** — click the "Clear" button (always visible at the bottom of the window), or press Delete/Backspace while viewing an image
 - **Hide the window** — press Cmd+W, click the window's close button, or click "Hide Window" in the menu bar
 - **Quit** — click "Quit" in the menu bar
+
+### Clipboard History
+
+Hello Clipboard remembers the last 25 items you copied (text and images). To browse and restore them:
+
+1. Click the 📋 menu bar icon
+2. Hover over **History**
+3. Click any entry (shown as `HH:MM:SS  preview…`) to restore it to the clipboard
+
+The main window updates immediately when you restore a history entry. To wipe all stored entries, click **Clear History** at the bottom of the submenu.
+
+> **Note:** History is held in memory only and is lost when the app quits or restarts.
 
 ### Red badge
 
