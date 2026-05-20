@@ -1,3 +1,10 @@
+v1.1.1 (2026-05-20)
+-------------------
+- Fix: copy → immediate paste sometimes failed on macOS 15 Sequoia due to
+  NSTextView posting NSTextDidChangeNotification asynchronously after a
+  programmatic setString_ call; textDidChange_ now skips the clipboard
+  write if the pasteboard has been externally modified since our last write
+
 v1.1.0 (2026-03-18)
 -------------------
 - Add clipboard history: the last 25 text and image clipboard entries are
