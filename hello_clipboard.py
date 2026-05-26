@@ -393,14 +393,22 @@ class ClipboardWindow(NSObject):
     @objc.typedSelector(b"v@:@")
     def textDidChange_(self, notification):
         if not self.updating_from_clipboard:
-            # If the clipboard changed externally since our last write (e.g. user
-            # just copied something), don't overwrite it.  On macOS 15 Sequoia,
-            # setString_ can post NSTextDidChangeNotification asynchronously, so
-            # this notification may arrive after updating_from_clipboard is cleared
-            # while the clipboard already holds new content we haven't synced yet.
+            # On macOS 15 Sequoia, setString_ can post NSTextDidChangeNotification
+            # asynchronously (deferred to the next run loop pass), so this handler
+            # may fire after updating_from_clipboard is already False.  Two guards:
+            #
+            # 1. If the clipboard was changed externally (different process or a
+            #    new copy by the user) since our last write, leave it alone.
             if self.pasteboard.changeCount() != self.last_change_count:
                 return
             text = self.text_view.string()
+            # 2. If the text view already matches the clipboard, the notification
+            #    is a deferred echo of our own programmatic setString_ call.
+            #    Calling clearContents() here would create a momentary empty
+            #    clipboard that another app could observe during a paste — skip.
+            current = self.pasteboard.stringForType_(NSPasteboardTypeString) or ""
+            if text == current:
+                return
             self.pasteboard.clearContents()
             self.pasteboard.setString_forType_(text, NSPasteboardTypeString)
             self.last_change_count = self.pasteboard.changeCount()

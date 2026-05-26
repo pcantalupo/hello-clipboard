@@ -1,3 +1,11 @@
+v1.1.2 (2026-05-26)
+-------------------
+- Fix: copy → immediate paste still failed after v1.1.1 because the deferred
+  NSTextDidChangeNotification from a programmatic setString_ call would pass
+  the changeCount guard and still call clearContents(), momentarily emptying
+  the clipboard before writing it back; added a second guard that skips the
+  write entirely when the text view content already matches the clipboard
+
 v1.1.1 (2026-05-20)
 -------------------
 - Fix: copy → immediate paste sometimes failed on macOS 15 Sequoia due to
