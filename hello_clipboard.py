@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import datetime
 import objc
+import os
 import signal
 from AppKit import (
     NSAlert,
@@ -41,6 +42,19 @@ from detection import check_for_suspicious_content
 
 
 NSTextDidChangeNotification = "NSTextDidChangeNotification"
+
+__version__ = "1.1.3"
+
+
+def log(message):
+    """Write a timestamped diagnostic line to stdout.
+
+    The LaunchAgent redirects stdout to /tmp/hello-clipboard.log, so these
+    lines land there.  Used to trace every pasteboard mutation while we hunt
+    the intermittent copy-then-paste failure.
+    """
+    ts = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+    print(f"[{ts}] {message}", flush=True)
 
 
 MAX_HISTORY_SIZE = 25
@@ -278,6 +292,10 @@ class ClipboardWindow(NSObject):
         self.current_mode = 'text'
         self.current_image = None
         self.updating_from_clipboard = False
+        # The text view's own (line-ending-normalized) output from the last time
+        # we set its contents programmatically.  textDidChange_ compares against
+        # this to recognize deferred echo notifications of our own writes.
+        self._programmatic_text = ""
         self.timer = None
         self.auto_clear_interval = 300  # default to 5 minutes
         self.auto_clear_timer = None
@@ -392,31 +410,39 @@ class ClipboardWindow(NSObject):
 
     @objc.typedSelector(b"v@:@")
     def textDidChange_(self, notification):
-        if not self.updating_from_clipboard:
-            # On macOS 15 Sequoia, setString_ can post NSTextDidChangeNotification
-            # asynchronously (deferred to the next run loop pass), so this handler
-            # may fire after updating_from_clipboard is already False.  Two guards:
-            #
-            # 1. If the clipboard was changed externally (different process or a
-            #    new copy by the user) since our last write, leave it alone.
-            if self.pasteboard.changeCount() != self.last_change_count:
-                return
-            text = self.text_view.string()
-            # 2. If the text view already matches the clipboard, the notification
-            #    is a deferred echo of our own programmatic setString_ call.
-            #    Calling clearContents() here would create a momentary empty
-            #    clipboard that another app could observe during a paste — skip.
-            current = self.pasteboard.stringForType_(NSPasteboardTypeString) or ""
-            if text == current:
-                return
-            self.pasteboard.clearContents()
-            self.pasteboard.setString_forType_(text, NSPasteboardTypeString)
-            self.last_change_count = self.pasteboard.changeCount()
-            if self.menu_bar:
-                if text:
-                    self.menu_bar.show_badge()
-                else:
-                    self.menu_bar.hide_badge()
+        if self.updating_from_clipboard:
+            return
+        text = self.text_view.string()
+
+        # On macOS 15 Sequoia, setString_ can post NSTextDidChangeNotification
+        # asynchronously (deferred to a later run loop pass), so this handler may
+        # fire after updating_from_clipboard has already been cleared.  When that
+        # happens the notification is a deferred *echo* of our own programmatic
+        # write, not a real user edit.  _programmatic_text holds the text view's
+        # own normalized output from that write, so this comparison can't be
+        # defeated by NSTextView's CR/CRLF -> LF normalization (the bug that made
+        # the earlier "text == clipboard" guard miss and fall through to
+        # clearContents(), momentarily emptying the clipboard mid-paste).
+        if text == self._programmatic_text:
+            log("textDidChange: echo of programmatic write, ignored")
+            return
+
+        # A genuinely external change (user copied elsewhere) since our last
+        # write — don't clobber it.
+        if self.pasteboard.changeCount() != self.last_change_count:
+            log("textDidChange: external clipboard change, skipping write")
+            return
+
+        log(f"textDidChange: user edit -> clearContents + setString ({len(text)} chars)")
+        self.pasteboard.clearContents()
+        self.pasteboard.setString_forType_(text, NSPasteboardTypeString)
+        self.last_change_count = self.pasteboard.changeCount()
+        self._programmatic_text = text
+        if self.menu_bar:
+            if text:
+                self.menu_bar.show_badge()
+            else:
+                self.menu_bar.hide_badge()
 
     # -- Clipboard I/O --
 
@@ -474,6 +500,7 @@ class ClipboardWindow(NSObject):
         if index < 0 or index >= len(self.history):
             return
         item = self.history.pop(index)
+        log(f"restore_history_item: restoring index {index} (type={item['type']})")
         item["timestamp"] = datetime.datetime.now()
         self.history.insert(0, item)
         self.pasteboard.clearContents()
@@ -501,12 +528,16 @@ class ClipboardWindow(NSObject):
 
     @objc.typedSelector(b"v@:@")
     def clearClipboard_(self, sender):
+        # sender is an NSTimer when fired by the auto-clear timer, else a button/menu.
+        source = "auto-clear timer" if isinstance(sender, NSTimer) else "manual"
+        log(f"clearClipboard: clearing clipboard ({source})")
         self.pasteboard.clearContents()
         self.last_change_count = self.pasteboard.changeCount()
         self.current_image = None
         self.show_text_mode(force=True)
         self.updating_from_clipboard = True
         self.text_view.setString_("")
+        self._programmatic_text = self.text_view.string()
         self.updating_from_clipboard = False
         if self.menu_bar:
             self.menu_bar.hide_badge()
@@ -547,6 +578,9 @@ class ClipboardWindow(NSObject):
             self.updating_from_clipboard = True
             self._remove_text_observer()
             self.text_view.setString_(data)
+            # Record the text view's normalized output so a deferred
+            # textDidChange_ echo can be recognized and ignored.
+            self._programmatic_text = self.text_view.string()
             self._add_text_observer()
             self.updating_from_clipboard = False
         elif content_type == 'image':
@@ -601,9 +635,12 @@ class ClipboardWindow(NSObject):
     def checkClipboard_(self, timer):
         current_count = self.pasteboard.changeCount()
         if current_count != self.last_change_count:
+            log(f"checkClipboard: external change detected "
+                f"(changeCount {self.last_change_count} -> {current_count})")
             self.last_change_count = current_count
             raw_image = self._get_raw_image_data()
             content_type, data = self.get_clipboard_content()
+            log(f"checkClipboard: content_type={content_type}")
             if content_type != 'empty':
                 self.update_window(content_type, data)
                 if self.menu_bar:
@@ -737,6 +774,7 @@ class AppDelegate(NSObject):
 
     def applicationDidFinishLaunching_(self, notification):
         """Set up the window, timer, and menu bar after the app has launched."""
+        log(f"hello-clipboard v{__version__} starting (pid {os.getpid()})")
         cw = self.clipboard_window
 
         cw.setup_window()
@@ -754,6 +792,7 @@ class AppDelegate(NSObject):
             cw.updating_from_clipboard = True
             cw._remove_text_observer()
             cw.text_view.setString_(data)
+            cw._programmatic_text = cw.text_view.string()
             cw._add_text_observer()
             cw.updating_from_clipboard = False
         elif content_type == 'image' and data:

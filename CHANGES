@@ -1,3 +1,18 @@
+v1.1.3 (2026-06-19)
+-------------------
+- Fix: the v1.1.2 "text == clipboard" guard was defeated by NSTextView's
+  line-ending normalization (CR/CRLF -> LF), so for any copied content with
+  CRLF newlines (common from browsers, Mail, Word) the deferred
+  NSTextDidChangeNotification echo still fell through to clearContents(),
+  momentarily emptying the clipboard and causing copy -> immediate paste to
+  paste nothing
+- Recognize the echo by comparing against the text view's own normalized
+  output from the last programmatic write (_programmatic_text) instead of the
+  raw clipboard string, so normalization can no longer cause a false miss
+- Add timestamped diagnostic logging to every pasteboard mutation
+  (checkClipboard_, textDidChange_, clearClipboard_, restore) and a version
+  stamp on launch, written to /tmp/hello-clipboard.log
+
 v1.1.2 (2026-05-26)
 -------------------
 - Fix: copy → immediate paste still failed after v1.1.1 because the deferred
