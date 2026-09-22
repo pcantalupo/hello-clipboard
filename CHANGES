@@ -1,3 +1,7 @@
+v1.1.4 (2026-09-22)
+-------------------
+- Detect ASCII smuggling with invisible Unicode characters (#28)
+
 v1.1.3 (2026-06-19)
 -------------------
 - Fix: the v1.1.2 "text == clipboard" guard was defeated by NSTextView's
