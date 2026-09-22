@@ -87,6 +87,8 @@ A checkmark indicates the active setting. The timer resets whenever you change t
 
 Hello Clipboard watches for clipboard content that looks like a malicious command — where attackers trick users into copying and pasting harmful commands into Terminal.
 
+It also warns about hidden Unicode tag characters (ASCII smuggling), and it ignores invisible characters such as zero-width spaces when it checks for suspicious commands.
+
 When a potential threat is detected, a warning appears immediately:
 
 <img src="docs/malicious-content-warning.png" width="250" alt="Warning dialog">

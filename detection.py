@@ -43,15 +43,37 @@ _SUSPICIOUS_PATTERNS = [
     (re.compile(r'https?://\S+\.(ps1|sh|bat|exe)\b', re.I), 'medium'),
 ]
 
+_WARNING = "Suspicious clipboard content detected — possible malicious payload. Do not paste in a terminal."
+
+# ASCII smuggling (issue #28): Unicode tag characters (U+E0000-U+E007F) are an
+# invisible copy of ASCII. Their only legitimate use is subdivision flag emoji
+# (black flag + 2-letter region + 1-4 letters/digits + CANCEL TAG).
+_FLAG_TAG_SEQ = re.compile(
+    '\U0001F3F4[\U000E0061-\U000E007A]{2}[\U000E0030-\U000E0039\U000E0061-\U000E007A]{1,4}\U000E007F'
+)
+_TAG_CHARS = re.compile('[\U000E0000-\U000E007F]')
+# Invisible characters stripped before matching: soft hyphen, Mongolian vowel
+# separator, zero-width chars, invisible operators, BOM, variation selectors, tags.
+_INVISIBLE = re.compile(
+    '[\U000000AD\U0000180E\U0000200B-\U0000200D\U00002060-\U00002064\U0000FEFF'
+    '\U0000FE00-\U0000FE0F\U000E0000-\U000E007F\U000E0100-\U000E01EF]'
+)
+
 
 def check_for_suspicious_content(text):
     """Return a warning string if text looks like a malicious payload, else None."""
-    if not text or len(text) > 10_000:
+    if not text:
+        return None
+    # Checked before the length guard so padding cannot hide tag characters
+    if _TAG_CHARS.search(_FLAG_TAG_SEQ.sub('', text)):
+        return _WARNING
+    text = _INVISIBLE.sub('', text)
+    if len(text) > 10_000:
         return None
     high = any(p.search(text) for p, lvl in _SUSPICIOUS_PATTERNS if lvl == 'high')
     medium_count = sum(
         len(p.findall(text)) for p, lvl in _SUSPICIOUS_PATTERNS if lvl == 'medium'
     )
     if high or medium_count >= 2:
-        return "Suspicious clipboard content detected — possible malicious payload. Do not paste in a terminal."
+        return _WARNING
     return None
